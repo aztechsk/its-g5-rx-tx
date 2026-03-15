@@ -2,6 +2,12 @@ menu "Example Configuration"
 
     orsource "$IDF_PATH/examples/common_components/env_caps/$IDF_TARGET/Kconfig.env_caps"
 
+    config ENABLE_SD
+        bool "Enable SD card"
+        default y
+        help
+            General toggle for enabling/disabling SD card related functionality.
+
     config SNIFFER_STORE_HISTORY
         bool "Store command history into flash"
         default y
@@ -17,6 +23,7 @@ menu "Example Configuration"
             Currently support storing files to SD card or to host via JTAG interface with 'Trace memory' enabled.
         config SNIFFER_PCAP_DESTINATION_SD
             bool "SD Card"
+            depends on ENABLE_SD
             help
                 Store pcap file to SD card.
         config SNIFFER_PCAP_DESTINATION_JTAG
@@ -30,7 +37,7 @@ menu "Example Configuration"
                 Store pcap file to memory.
     endchoice
 
-    if SNIFFER_PCAP_DESTINATION_SD
+    if ENABLE_SD
         choice SNIFFER_SD_MODE
             prompt "Select SD card work mode"
             default SNIFFER_SD_SDMMC_MODE
@@ -38,7 +45,7 @@ menu "Example Configuration"
                 Select which peripheral SD card should use.
             config SNIFFER_SD_SDMMC_MODE
                 bool "SDMMC"
-                depends on IDF_TARGET_ESP32 || IDF_TARGET_ESP32S3
+                depends on SOC_SDMMC_HOST_SUPPORTED
                 help
                     Use SDMMC mode (Not support on esp32c3).
             config SNIFFER_SD_SPI_MODE
@@ -82,7 +89,8 @@ menu "Example Configuration"
             default "/sdcard"
             help
                 Specify the mount point in the VFS (Virtual File System) for SD card.
-
+    endif
+    if SNIFFER_PCAP_DESTINATION_SD
         config SNIFFER_PCAP_FILE_NAME_MAX_LEN
             int "Max name length of pcap file"
             default 32
