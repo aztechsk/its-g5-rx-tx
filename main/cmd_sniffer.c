@@ -50,58 +50,7 @@ typedef struct {
 } sniffer_runtime_t;
 
 static sniffer_runtime_t snf_rt = {0};
-static wlan_filter_table_t wifi_filter_hash_table[SNIFFER_WLAN_FILTER_MAX] = {0};
 static esp_err_t sniffer_stop(sniffer_runtime_t *sniffer);
-
-static uint32_t hash_func(const char *str, uint32_t max_num)
-{
-    uint32_t ret = 0;
-    char *p = (char *)str;
-    while (*p) {
-        ret += *p;
-        p++;
-    }
-    return ret % max_num;
-}
-
-static void create_wifi_filter_hashtable(void)
-{
-    char *wifi_filter_keys[SNIFFER_WLAN_FILTER_MAX] = {"mgmt", "data", "ctrl", "misc", "mpdu", "ampdu", "fcsfail"};
-    uint32_t wifi_filter_values[SNIFFER_WLAN_FILTER_MAX] = {WIFI_PROMIS_FILTER_MASK_MGMT, WIFI_PROMIS_FILTER_MASK_DATA,
-                                                            WIFI_PROMIS_FILTER_MASK_CTRL, WIFI_PROMIS_FILTER_MASK_MISC,
-                                                            WIFI_PROMIS_FILTER_MASK_DATA_MPDU, WIFI_PROMIS_FILTER_MASK_DATA_AMPDU,
-                                                            WIFI_PROMIS_FILTER_MASK_FCSFAIL
-                                                           };
-    for (int i = 0; i < SNIFFER_WLAN_FILTER_MAX; i++) {
-        uint32_t idx = hash_func(wifi_filter_keys[i], SNIFFER_WLAN_FILTER_MAX);
-        while (wifi_filter_hash_table[idx].filter_name) {
-            idx++;
-            if (idx >= SNIFFER_WLAN_FILTER_MAX) {
-                idx = 0;
-            }
-        }
-        wifi_filter_hash_table[idx].filter_name = wifi_filter_keys[i];
-        wifi_filter_hash_table[idx].filter_val = wifi_filter_values[i];
-    }
-}
-
-static uint32_t search_wifi_filter_hashtable(const char *key)
-{
-    uint32_t len = strlen(key);
-    uint32_t start_idx = hash_func(key, SNIFFER_WLAN_FILTER_MAX);
-    uint32_t idx = start_idx;
-    while (strncmp(wifi_filter_hash_table[idx].filter_name, key, len)) {
-        idx++;
-        if (idx >= SNIFFER_WLAN_FILTER_MAX) {
-            idx = 0;
-        }
-        /* wrong key */
-        if (idx == start_idx) {
-            return 0;
-        }
-    }
-    return wifi_filter_hash_table[idx].filter_val;
-}
 
 static void queue_packet(void *recv_packet, sniffer_packet_info_t *packet_info)
 {
@@ -344,7 +293,7 @@ err:
 
 static struct {
     struct arg_str *interface;
-    struct arg_str *filter;
+    struct arg_lit *fcsfail;
     struct arg_int *channel;
     struct arg_lit *stop;
     struct arg_int *number;
@@ -428,22 +377,13 @@ static int do_sniffer_cmd(int argc, char **argv)
     /* Check filter setting: "-F" option */
     switch (snf_rt.interf) {
     case SNIFFER_INTF_WLAN:
-        if (sniffer_args.filter->count) {
-            snf_rt.filter = 0;
-            for (int i = 0; i < sniffer_args.filter->count; i++) {
-                snf_rt.filter += search_wifi_filter_hashtable(sniffer_args.filter->sval[i]);
-            }
-            /* When filter conditions are all wrong */
-            if (snf_rt.filter == 0) {
-                snf_rt.filter = WIFI_PROMIS_FILTER_MASK_ALL;
-            }
-        } else {
             snf_rt.filter = WIFI_PROMIS_FILTER_MASK_ALL;
-        }
+            if (!sniffer_args.fcsfail->count)
+                snf_rt.filter &= ~WIFI_PROMIS_FILTER_MASK_FCSFAIL;
         break;
     case SNIFFER_INTF_ETH:
-        if (sniffer_args.filter->count) {
-            ESP_LOGW(TAG, "'filter' option is not available for Ethernet");
+        if (sniffer_args.fcsfail->count) {
+            ESP_LOGW(TAG, "'fcsfail' option is not available for Ethernet");
         }
     default:
         break;
@@ -467,7 +407,7 @@ void register_sniffer_cmd(void)
                                    "the number of the packets to be captured");
     sniffer_args.interface = arg_str0("i", "interface", "<wlan|eth0|eth1|...>",
                                       "which interface to capture packet");
-    sniffer_args.filter = arg_strn("F", "filter", "<mgmt|data|ctrl|misc|mpdu|ampdu|fcsfail>", 0, 7, "filter parameters");
+    sniffer_args.fcsfail = arg_lit0("F", "fcsfail", "include corrupted packets with wrong FCS");
     sniffer_args.channel = arg_int0("c", "channel", "<channel>", "communication channel to use");
     sniffer_args.stop = arg_lit0(NULL, "stop", "stop running sniffer");
     sniffer_args.end = arg_end(1);
@@ -479,6 +419,4 @@ void register_sniffer_cmd(void)
         .argtable = &sniffer_args
     };
     ESP_ERROR_CHECK(esp_console_cmd_register(&sniffer_cmd));
-
-    create_wifi_filter_hashtable();
 }
