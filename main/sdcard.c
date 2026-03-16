@@ -139,4 +139,11 @@ void register_unmount(void)
     };
     ESP_ERROR_CHECK(esp_console_cmd_register(&cmd));
 }
+
+void sdcard_register_commands(void)
+{
+    register_mount();
+    register_unmount();
+}
+
 #endif // CONFIG_ENABLE_SD

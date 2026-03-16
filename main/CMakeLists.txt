@@ -1,9 +1,23 @@
-idf_component_register(SRCS "main.c"
-                            "cmd_sniffer.c"
-                            "cmd_pcap.c"
-                            "ethernet.c"
-                            "sdcard.c"
-                            "spi.c"
-                    PRIV_REQUIRES console esp_wifi fatfs esp_eth app_trace nvs_flash
-                    INCLUDE_DIRS ".")
+idf_component_register(
+    SRCS
+        "main.c"
+        "cmd_sniffer.c"
+        "cmd_pcap.c"
+        "config.c"
+        "ethernet.c"
+        "events.c"
+        "mqtt.c"
+        "sdcard.c"
+        "spi.c"
+    PRIV_REQUIRES
+        app_trace
+        console
+        esp_eth
+        esp_netif
+        esp_wifi
+        fatfs
+        nvs_flash
+    INCLUDE_DIRS
+        "."
+)
 

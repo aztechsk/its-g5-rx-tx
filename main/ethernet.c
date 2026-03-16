@@ -10,6 +10,7 @@
 #include "lwip/netif.h"
 
 #include "cmd_sniffer.h"
+#include "events.h"
 
 #include "ethernet.h"
 
@@ -17,6 +18,9 @@
 #define ETH_MANAGEMENT_INTERFACE 0
 
 static const char TAG[] = "ETHERNET";
+
+static esp_netif_t *mgmt_netif;
+static esp_eth_handle_t mgmt_eth;
 
 /** Event handler for Ethernet events */
 static void eth_event_handler(void *arg, esp_event_base_t event_base,
@@ -33,15 +37,20 @@ static void eth_event_handler(void *arg, esp_event_base_t event_base,
                  mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5]);
         break;
     case ETHERNET_EVENT_DISCONNECTED:
-        printf("\n");
         ESP_LOGI(TAG, "Ethernet link down");
+        if (eth_handle == mgmt_eth)
+        {
+            esp_err_t post_res = esp_event_post(APP_EVENT_BASE, APP_ETHERNET_MGMT_INTERFACE_DISCONNECTED, NULL, 0, 0);
+            if (post_res != ESP_OK)
+            {
+                ESP_LOGE(TAG, "esp_event_post failed: %s", esp_err_to_name(post_res));
+            }
+        }
         break;
     case ETHERNET_EVENT_START:
-        printf("\n");
         ESP_LOGI(TAG, "Ethernet started");
         break;
     case ETHERNET_EVENT_STOP:
-        printf("\n");
         ESP_LOGI(TAG, "Ethernet stopped");
         break;
     default:
@@ -53,23 +62,48 @@ static void eth_event_handler(void *arg, esp_event_base_t event_base,
 static void ip_event_handler(void *arg, esp_event_base_t event_base,
                               int32_t event_id, void *event_data)
 {
+    ip_event_got_ip_t *event = (ip_event_got_ip_t *) event_data;
+
+    char ifname[NETIF_NAMESIZE] = {0};
+    esp_err_t res = esp_netif_get_netif_impl_name(event->esp_netif, ifname);
+    if (res != ESP_OK)
+    {
+        ESP_LOGE(TAG, "Failed to get netif name: %s", esp_err_to_name(res));
+        strcpy(ifname, "unk");
+    }
+
     switch (event_id) {
     case IP_EVENT_ETH_GOT_IP:
         {
-            ip_event_got_ip_t *event = (ip_event_got_ip_t *) event_data;
-
-            char ifname[NETIF_NAMESIZE] = {0};
-            esp_err_t res = esp_netif_get_netif_impl_name(event->esp_netif, ifname);
-            if (res != ESP_OK)
-            {
-                ESP_LOGE(TAG, "Failed to get netif name: %s", esp_err_to_name(res));
-                strcpy(ifname, "unk");
-            }
-
             const esp_netif_ip_info_t *ip_info = &event->ip_info;
             ESP_LOGI(TAG, "Ethernet %s got IP: " IPSTR " netmask: " IPSTR " gw: " IPSTR, ifname, IP2STR(&ip_info->ip), IP2STR(&ip_info->netmask), IP2STR(&ip_info->gw));
+
+            // If this is the management netif, post an event to start MQTT etc.
+            if (event->esp_netif == mgmt_netif)
+            {
+                esp_err_t post_res = esp_event_post(APP_EVENT_BASE, APP_ETHERNET_MGMT_INTERFACE_CONNECTED, NULL, 0, 0);
+                if (post_res != ESP_OK)
+                {
+                    ESP_LOGE(TAG, "esp_event_post failed: %s", esp_err_to_name(post_res));
+                }
+            }
             break;
         }
+    case IP_EVENT_ETH_LOST_IP:
+    {
+        ESP_LOGI(TAG, "Ethernet %s lost IP", ifname);
+
+        // If this is the management netif, post an event to start MQTT etc.
+        if (event->esp_netif == mgmt_netif)
+        {
+            esp_err_t post_res = esp_event_post(APP_EVENT_BASE, APP_ETHERNET_MGMT_INTERFACE_DISCONNECTED, NULL, 0, 0);
+            if (post_res != ESP_OK)
+            {
+                ESP_LOGE(TAG, "esp_event_post failed: %s", esp_err_to_name(post_res));
+            }
+        }
+    }
+
     default:
         break;
     }
@@ -108,6 +142,9 @@ void initialize_ethernet(void)
             esp_netif_config_t cfg = ESP_NETIF_DEFAULT_ETH();
             cfg.base = &esp_netif_config;
             esp_netif_t *eth_netif = esp_netif_new(&cfg);
+
+            mgmt_netif = eth_netif;
+            mgmt_eth = eth_handles[i];
 
             ESP_ERROR_CHECK(esp_netif_attach(eth_netif, esp_eth_new_netif_glue(eth_handles[i])));
             ESP_ERROR_CHECK(esp_eth_start(eth_handles[i]));

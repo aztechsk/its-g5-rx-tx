@@ -14,7 +14,9 @@
 
 #include "cmd_sniffer.h"
 #include "cmd_pcap.h"
+#include "config.h"
 #include "ethernet.h"
+#include "mqtt.h"
 #include "sdcard.h"
 #include "spi.h"
 
@@ -40,16 +42,6 @@ static void initialize_filesystem(void)
     }
 }
 
-static void initialize_nvs(void)
-{
-    esp_err_t err = nvs_flash_init();
-    if (err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
-        ESP_ERROR_CHECK(nvs_flash_erase());
-        err = nvs_flash_init();
-    }
-    ESP_ERROR_CHECK(err);
-}
-
 /* Initialize wifi with tcp/ip adapter */
 static void initialize_wifi(void)
 {
@@ -59,27 +51,26 @@ static void initialize_wifi(void)
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_NULL));
 }
 
-void app_main(void)
+static esp_console_repl_t *repl;
+static void console_init(void)
 {
-    initialize_nvs();
-    initialize_filesystem();
+    // 31 buffer size - length of colors and 1 space after prompt - 1 closing angle bracket - 1 null byte
+    const size_t max_nodeid_length = 31 - (sizeof(LOG_COLOR_I " " LOG_RESET_COLOR) - 1) - 1 - 1;
 
-    initialize_spi();
+    char prompt[CONFIG_NODEID_BUFFER_SIZE];
+    size_t size = sizeof(prompt);
+    ESP_ERROR_CHECK(config_get_str(CONFIG_INDEX_NODEID, prompt, &size));
 
-    /*--- Initialize Network ---*/
-    ESP_ERROR_CHECK(esp_event_loop_create_default());
-    /* Initialize WiFi */
-    initialize_wifi();
-    /* Initialize Ethernet */
-    initialize_ethernet();
+    if (size - 1 > max_nodeid_length)
+        strcpy(&prompt[max_nodeid_length - 3], "...");
 
-    /*--- Initialize Console ---*/
-    esp_console_repl_t *repl = NULL;
+    strcat(prompt, ">");
+
     esp_console_repl_config_t repl_config = ESP_CONSOLE_REPL_CONFIG_DEFAULT();
 #if CONFIG_SNIFFER_STORE_HISTORY
     repl_config.history_save_path = HISTORY_FILE_PATH;
 #endif
-    repl_config.prompt = "cli>";
+    repl_config.prompt = prompt;
 
     // install console REPL environment
 #if CONFIG_ESP_CONSOLE_UART
@@ -92,14 +83,61 @@ void app_main(void)
     esp_console_dev_usb_serial_jtag_config_t usbjtag_config = ESP_CONSOLE_DEV_USB_SERIAL_JTAG_CONFIG_DEFAULT();
     ESP_ERROR_CHECK(esp_console_new_repl_usb_serial_jtag(&usbjtag_config, &repl_config, &repl));
 #endif
+}
+
+int cmd_reboot(int argc, char **argv)
+{
+    (void)argc;
+    (void)argv;
+
+    esp_restart();
+
+    return 1;
+}
+
+void register_reboot(void)
+{
+    const esp_console_cmd_t cmd = {
+        .command = "reboot",
+        .help = "reboot the device",
+        .hint = NULL,
+        .func = &cmd_reboot,
+    };
+    ESP_ERROR_CHECK(esp_console_cmd_register(&cmd));
+}
+
+void app_main(void)
+{
+    config_init();
+
+    initialize_filesystem();
+
+    initialize_spi();
+
+    ESP_ERROR_CHECK(esp_event_loop_create_default());
+
+    // Make sure MQTT has registered its event handlers before Ethernet goes up
+    mqtt_init();
+
+    /*--- Initialize Network ---*/
+    /* Initialize WiFi */
+    initialize_wifi();
+    /* Initialize Ethernet */
+    initialize_ethernet();
+
+    /*--- Initialize Console ---*/
+    console_init();
 
     /* Register commands */
 #if CONFIG_ENABLE_SD
-    register_mount();
-    register_unmount();
+    sdcard_register_commands();
 #endif
     register_sniffer_cmd();
     register_pcap_cmd();
+
+    config_register_commands();
+
+    register_reboot();
 
     // start console REPL
     ESP_ERROR_CHECK(esp_console_start_repl(repl));

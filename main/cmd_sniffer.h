@@ -14,6 +14,18 @@
 extern "C" {
 #endif
 
+typedef struct {
+    void *payload;
+    uint32_t length;
+    uint32_t seconds;
+    uint32_t microseconds;
+} sniffer_packet_info_t;
+
+typedef struct {
+    sniffer_packet_info_t info;
+    uint8_t payload[];
+} sniffer_combined_info_t;
+
 /**
  * @brief Supported Sniffer Interface
  *
@@ -41,6 +53,7 @@ typedef enum {
 
 void register_sniffer_cmd(void);
 esp_err_t sniffer_reg_eth_intf(esp_eth_handle_t eth_handle);
+
 
 #ifdef __cplusplus
 }
