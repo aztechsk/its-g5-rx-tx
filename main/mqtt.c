@@ -152,21 +152,15 @@ static void app_event_handler(void *handler_args, esp_event_base_t base, int32_t
     }
 }
 
-static void sniffer_event_handler(void *handler_args, esp_event_base_t base, int32_t event_id, void *event_data)
+void mqtt_handle_packet(sniffer_packet_info_t *packet)
 {
     if (!client)
         return;
 
-    switch (event_id)
-    {
-    case SNIFFER_GOT_FRAME:
-        sniffer_combined_info_t *info = event_data;
-        esp_mqtt_client_publish(client, packet_topic, (const char *)info->payload, info->info.length, 0, 0);
-    }
+    esp_mqtt_client_publish(client, packet_topic, (const char *)packet->payload, packet->length, 0, 0);
 }
 
 void mqtt_init(void)
 {
     esp_event_handler_register(APP_EVENT_BASE, ESP_EVENT_ANY_ID, app_event_handler, NULL);
-    esp_event_handler_register(SNIFFER_EVENT_BASE, ESP_EVENT_ANY_ID, sniffer_event_handler, NULL);
 }

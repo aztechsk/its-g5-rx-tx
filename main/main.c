@@ -128,6 +128,8 @@ void app_main(void)
     /*--- Initialize Console ---*/
     console_init();
 
+    sniffer_init();
+
     /* Register commands */
 #if CONFIG_ENABLE_SD
     sdcard_register_commands();

@@ -21,11 +21,6 @@ typedef struct {
     uint32_t microseconds;
 } sniffer_packet_info_t;
 
-typedef struct {
-    sniffer_packet_info_t info;
-    uint8_t payload[];
-} sniffer_combined_info_t;
-
 /**
  * @brief Supported Sniffer Interface
  *
@@ -51,6 +46,7 @@ typedef enum {
     SNIFFER_WLAN_FILTER_MAX
 } sniffer_wlan_filter_t;
 
+void sniffer_init(void);
 void register_sniffer_cmd(void);
 esp_err_t sniffer_reg_eth_intf(esp_eth_handle_t eth_handle);
 
