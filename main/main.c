@@ -6,6 +6,7 @@
 
 #include "linenoise/linenoise.h"
 #include "esp_console.h"
+#include "esp_crt_bundle.h"
 #include "esp_err.h"
 #include "esp_log.h"
 #include "esp_timer.h"

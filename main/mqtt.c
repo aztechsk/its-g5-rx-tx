@@ -1,5 +1,7 @@
 #include "sdkconfig.h"
 
+#include "esp_console.h"
+#include "esp_crt_bundle.h"
 #include "esp_log.h"
 #include "mqtt_client.h"
 
@@ -15,7 +17,9 @@ static esp_mqtt_client_handle_t client;
 
 static char topic_prefix[96];
 static char command_topic[128];
+static char result_topic[128];
 static char packet_topic[128];
+static char status_topic[128];
 
 static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_t event_id, void *event_data) {
     ESP_LOGD(TAG, "Event dispatched from event loop base=%s, event_id=%d", base, event_id);
@@ -29,11 +33,13 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
             ESP_LOGI(TAG, "MQTT_EVENT_CONNECTED");
             msg_id = esp_mqtt_client_subscribe(client, command_topic, 0);
             ESP_LOGI(TAG, "sent subscribe successful, msg_id=%d", msg_id);
+
+            esp_mqtt_client_publish(client, status_topic, "online", sizeof("online") - 1, 0, 1);
+
             break;
         case MQTT_EVENT_DISCONNECTED:
             ESP_LOGI(TAG, "MQTT_EVENT_DISCONNECTED");
             break;
-
         case MQTT_EVENT_SUBSCRIBED:
             ESP_LOGI(TAG, "MQTT_EVENT_SUBSCRIBED, msg_id=%d", event->msg_id);
             break;
@@ -47,6 +53,29 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
             ESP_LOGI(TAG, "MQTT_EVENT_DATA");
             printf("TOPIC=%.*s\r\n", event->topic_len, event->topic);
             printf("DATA=%.*s\r\n", event->data_len, event->data);
+            if (strlen(command_topic) == event->topic_len && !strncmp(event->topic, command_topic, event->topic_len))
+            {
+                // blegh
+                event->data[event->data_len] = '\0';
+
+                ESP_LOGI(TAG, "Running command '%s'", event->data);
+
+                int ret;
+                int res = esp_console_run(event->data, &ret);
+                char result_buf[128];
+                if (res != ESP_OK)
+                {
+                    snprintf(result_buf, sizeof(result_buf), "esp_console_run failed: %s", esp_err_to_name(res));
+                    ESP_LOGE(TAG, "%s", result_buf);
+                    break;
+                }
+                else
+                {
+                    snprintf(result_buf, sizeof(result_buf), "%d", ret);
+                }
+
+                esp_mqtt_client_publish(client, result_topic, result_buf, strlen(result_buf), 0, 0);
+            }
             break;
         case MQTT_EVENT_ERROR:
             ESP_LOGI(TAG, "MQTT_EVENT_ERROR");
@@ -99,8 +128,14 @@ void mqtt_start(void)
     strcpy(command_topic, topic_prefix);
     strcat(command_topic, "command");
 
+    strcpy(result_topic, topic_prefix);
+    strcat(result_topic, "command_result");
+
     strcpy(packet_topic, topic_prefix);
     strcat(packet_topic, "packet");
+
+    strcpy(status_topic, topic_prefix);
+    strcat(status_topic, "status");
 
     esp_mqtt_client_config_t mqtt_cfg = {0};
 
@@ -114,6 +149,14 @@ void mqtt_start(void)
     }
 
     mqtt_cfg.broker.address.uri = mqtt_uri;
+    mqtt_cfg.broker.verification.crt_bundle_attach = esp_crt_bundle_attach;
+    struct last_will_t last_will = {
+        .topic = status_topic,
+        .msg = "offline",
+        .msg_len = sizeof("offline") - 1,
+        .retain = 1
+    };
+    mqtt_cfg.session.last_will = last_will;
 
     esp_mqtt_client_handle_t client_ = esp_mqtt_client_init(&mqtt_cfg);
     esp_mqtt_client_register_event(client_, ESP_EVENT_ANY_ID, mqtt_event_handler, client_);
