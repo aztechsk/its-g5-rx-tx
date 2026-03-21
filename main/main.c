@@ -17,6 +17,7 @@
 #include "config.h"
 #include "ethernet.h"
 #include "mqtt.h"
+#include "ota.h"
 #include "sdcard.h"
 #include "spi.h"
 
@@ -129,6 +130,7 @@ void app_main(void)
     console_init();
 
     sniffer_init();
+    ota_init();
 
     /* Register commands */
 #if CONFIG_ENABLE_SD
@@ -140,6 +142,8 @@ void app_main(void)
     config_register_commands();
 
     register_reboot();
+
+    register_ota_cmd();
 
     // start console REPL
     ESP_ERROR_CHECK(esp_console_start_repl(repl));

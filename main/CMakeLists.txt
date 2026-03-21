@@ -7,12 +7,15 @@ idf_component_register(
         "ethernet.c"
         "events.c"
         "mqtt.c"
+        "ota.c"
         "sdcard.c"
         "spi.c"
     PRIV_REQUIRES
         app_trace
+        app_update
         console
         esp_eth
+        esp_https_ota
         esp_netif
         esp_wifi
         fatfs
