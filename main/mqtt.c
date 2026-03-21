@@ -1,5 +1,7 @@
 #include "sdkconfig.h"
 
+#include <stdbool.h>
+
 #include "esp_console.h"
 #include "esp_crt_bundle.h"
 #include "esp_log.h"
@@ -14,6 +16,7 @@
 static const char TAG[] = "MQTT";
 
 static esp_mqtt_client_handle_t client;
+static bool connected;
 
 static char topic_prefix[96];
 static char command_topic[128];
@@ -30,6 +33,7 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
     // your_context_t *context = event->context;
     switch (event->event_id) {
         case MQTT_EVENT_CONNECTED:
+            connected = true;
             ESP_LOGI(TAG, "MQTT_EVENT_CONNECTED");
             msg_id = esp_mqtt_client_subscribe(client, command_topic, 0);
             ESP_LOGI(TAG, "sent subscribe successful, msg_id=%d", msg_id);
@@ -38,6 +42,7 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 
             break;
         case MQTT_EVENT_DISCONNECTED:
+            connected = false;
             ESP_LOGI(TAG, "MQTT_EVENT_DISCONNECTED");
             break;
         case MQTT_EVENT_SUBSCRIBED:
@@ -78,6 +83,7 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
             }
             break;
         case MQTT_EVENT_ERROR:
+            connected = false;
             ESP_LOGI(TAG, "MQTT_EVENT_ERROR");
             if (event->error_handle->error_type == MQTT_ERROR_TYPE_TCP_TRANSPORT) {
                 ESP_LOGI(TAG, "Last error code reported from esp-tls: 0x%x", event->error_handle->esp_tls_last_esp_err);
@@ -175,6 +181,7 @@ void mqtt_stop(void)
     }
 
     esp_mqtt_client_stop(client);
+    connected = false;
 
     esp_mqtt_client_handle_t client_ = client;
     client = NULL;
@@ -197,7 +204,7 @@ static void app_event_handler(void *handler_args, esp_event_base_t base, int32_t
 
 void mqtt_handle_packet(sniffer_packet_info_t *packet)
 {
-    if (!client)
+    if (!client || !connected)
         return;
 
     esp_mqtt_client_publish(client, packet_topic, (const char *)packet->payload, packet->length, 0, 0);

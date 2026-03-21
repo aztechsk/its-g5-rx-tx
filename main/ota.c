@@ -2,6 +2,7 @@
 
 #include <stdbool.h>
 
+#include "esp_crt_bundle.h"
 #include "esp_console.h"
 #include "esp_err.h"
 #include "esp_event.h"
@@ -23,6 +24,7 @@ static struct {
     struct arg_lit *confirm;
     struct arg_lit *rollback;
     struct arg_lit *switch_part;
+    struct arg_lit *info;
     struct arg_end *end;
 } ota_args;
 
@@ -34,6 +36,7 @@ static bool reboot_after_update;
 
 esp_http_client_config_t http_client_config = {
     .url = https_url,
+    .crt_bundle_attach = esp_crt_bundle_attach
 };
 
 esp_https_ota_config_t ota_config = {
@@ -107,7 +110,7 @@ static int ota_cmd(int argc, char **argv)
         return 1;
     }
 
-    if (ota_args.url->count + ota_args.confirm->count + ota_args.rollback->count + ota_args.switch_part->count != 1)
+    if (ota_args.url->count + ota_args.confirm->count + ota_args.rollback->count + ota_args.switch_part->count + ota_args.info->count != 1)
     {
         ESP_LOGE(TAG, "Please specify exactly one operation to perform");
         return 1;
@@ -180,6 +183,56 @@ static int ota_cmd(int argc, char **argv)
                     NULL, CONFIG_SNIFFER_TASK_PRIORITY, &ota_task_handle);
     }
 
+    if (ota_args.info->count)
+    {
+        const esp_partition_t *current = esp_ota_get_running_partition();
+
+        for (esp_partition_iterator_t it = esp_partition_find(ESP_PARTITION_TYPE_APP, ESP_PARTITION_SUBTYPE_ANY, NULL); it != NULL; it = esp_partition_next(it))
+        {
+            const esp_partition_t *part = esp_partition_get(it);
+            esp_ota_img_states_t state;
+            esp_err_t res = esp_ota_get_state_partition(part, &state);
+            const char *state_string;
+
+            if (res == ESP_OK)
+            {
+                switch (state)
+                {
+                case ESP_OTA_IMG_NEW:
+                    state_string = "new";
+                    break;
+                case ESP_OTA_IMG_PENDING_VERIFY:
+                    state_string = "pending";
+                    break;
+                case ESP_OTA_IMG_VALID:
+                    state_string = "valid";
+                    break;
+                case ESP_OTA_IMG_INVALID:
+                    state_string = "invalid";
+                    break;
+                case ESP_OTA_IMG_ABORTED:
+                    state_string = "aborted";
+                    break;
+                case ESP_OTA_IMG_UNDEFINED:
+                    state_string = "undefined";
+                    break;
+                default:
+                    __builtin_unreachable();
+                }
+            }
+            else
+            {
+                state_string = "???";
+            }
+
+            ESP_LOGI(TAG, "%c %-9s %s %#08x",
+                     part == current ? '*' : ' ',
+                     state_string,
+                     part->label,
+                     part->address);
+        }
+    }
+
     return 0;
 }
 
@@ -188,9 +241,10 @@ void register_ota_cmd(void)
 {
     ota_args.url = arg_str0("u", NULL, "<url>", "update over HTTPS URL");
     ota_args.reboot = arg_lit0("r", NULL, "reboot into new app after update");
-    ota_args.confirm = arg_lit0("C", NULL, "confirm app partition after update");
-    ota_args.rollback = arg_lit0("R", NULL, "rollback to old app and reboot after update");
+    ota_args.confirm = arg_lit0("C", NULL, "confirm currently running app partition");
+    ota_args.rollback = arg_lit0("R", NULL, "rollback to old app and reboot");
     ota_args.switch_part = arg_lit0("S", NULL, "switch to other app partition and reboot");
+    ota_args.info = arg_lit0("i", NULL, "print partition info");
     ota_args.end = arg_end(1);
     const esp_console_cmd_t cmd = {
         .command = "ota",

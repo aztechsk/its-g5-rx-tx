@@ -14,7 +14,7 @@ static void packet_event_handler(void* arg, esp_event_base_t event_base,
                                  int32_t event_id, void* event_data)
 {
     led_indicator_set_rgb(led_handle, 0xFF);
-    esp_timer_start_once(timer_handle, 100000);
+    esp_timer_start_once(timer_handle, 50000);
 }
 
 static void timer_cb(void *)
