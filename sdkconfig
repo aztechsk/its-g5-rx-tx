@@ -4160,6 +4160,45 @@ CONFIG_WL_SECTOR_SIZE=4096
 # end of Wear Levelling
 
 #
+# CMake Utilities
+#
+# default:
+# CONFIG_CU_RELINKER_ENABLE is not set
+# default:
+# CONFIG_CU_DIAGNOSTICS_COLOR_NEVER is not set
+# default:
+CONFIG_CU_DIAGNOSTICS_COLOR_ALWAYS=y
+# default:
+# CONFIG_CU_DIAGNOSTICS_COLOR_AUTO is not set
+# default:
+# CONFIG_CU_GCC_LTO_ENABLE is not set
+# default:
+# CONFIG_CU_GCC_STRING_1BYTE_ALIGN is not set
+# end of CMake Utilities
+
+#
+# LED Indicator
+#
+# default:
+CONFIG_BRIGHTNESS_TICKS=10
+# default:
+CONFIG_USE_GAMMA_CORRECTION=y
+
+#
+# LEDC Config
+#
+# default:
+CONFIG_LEDC_LOW_SPEED_MODE=y
+# default:
+CONFIG_LEDC_SPEED_MODE_VALUE=0
+# default:
+CONFIG_LEDC_TIMER_BIT_NUM=13
+# default:
+CONFIG_LEDC_TIMER_FREQ_HZ=5000
+# end of LEDC Config
+# end of LED Indicator
+
+#
 # ESP-MQTT Configurations
 #
 # default:

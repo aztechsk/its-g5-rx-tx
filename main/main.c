@@ -8,6 +8,7 @@
 #include "esp_console.h"
 #include "esp_err.h"
 #include "esp_log.h"
+#include "esp_timer.h"
 #include "esp_vfs_fat.h"
 #include "esp_wifi.h"
 #include "nvs_flash.h"
@@ -16,6 +17,7 @@
 #include "cmd_pcap.h"
 #include "config.h"
 #include "ethernet.h"
+#include "led.h"
 #include "mqtt.h"
 #include "ota.h"
 #include "sdcard.h"
@@ -109,6 +111,8 @@ void register_reboot(void)
 
 void app_main(void)
 {
+    esp_timer_init();
+
     config_init();
 
     initialize_filesystem();
@@ -131,6 +135,8 @@ void app_main(void)
 
     sniffer_init();
     ota_init();
+
+    led_init();
 
     /* Register commands */
 #if CONFIG_ENABLE_SD

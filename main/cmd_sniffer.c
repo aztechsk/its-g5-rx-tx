@@ -125,6 +125,8 @@ static void sniffer_task(void *)
 
         mqtt_handle_packet(&packet_info);
 
+        esp_event_post(SNIFFER_EVENT_BASE, PACKET_RECEIVED, NULL, 0, 0);
+
         free(packet_info.payload);
     }
     /* notify that sniffer task is over */
