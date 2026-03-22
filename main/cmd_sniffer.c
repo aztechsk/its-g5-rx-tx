@@ -11,16 +11,19 @@
 #include "freertos/task.h"
 #include "freertos/queue.h"
 #include "freertos/semphr.h"
+#include "esp_app_trace.h"
+#include "esp_check.h"
+#include "esp_console.h"
 #include "esp_log.h"
 #include "esp_wifi.h"
-#include "esp_console.h"
-#include "esp_app_trace.h"
-#include "cmd_sniffer.h"
-#include "cmd_pcap.h"
-#include "esp_check.h"
+#include "nvs.h"
 
+#include "cmd_pcap.h"
+#include "config.h"
 #include "events.h"
 #include "mqtt.h"
+
+#include "cmd_sniffer.h"
 
 #define SNIFFER_DEFAULT_CHANNEL             (1)
 #define SNIFFER_PAYLOAD_FCS_LEN             (4)
@@ -400,4 +403,24 @@ void sniffer_init(void)
 
 err:
     ESP_ERROR_CHECK(ret);
+}
+
+void sniffer_autostart(void)
+{
+    uint32_t conf_channel;
+    esp_err_t ret = config_get_u32(CONFIG_INDEX_AUTOSTART_CHAN, &conf_channel);
+    if (ret != ESP_OK)
+    {
+        if (ret != ESP_ERR_NVS_NOT_FOUND)
+            ESP_LOGE(TAG, "config_get_u32 failed: %s", ret);
+        return;
+    }
+
+    if (conf_channel >= 5800 && conf_channel <= 5900)
+    {
+        interf = SNIFFER_INTF_WLAN;
+        channel = conf_channel;
+        filter = WIFI_PROMIS_FILTER_MASK_ALL & ~WIFI_PROMIS_FILTER_MASK_FCSFAIL;
+        sniffer_start();
+    }
 }

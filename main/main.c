@@ -152,6 +152,8 @@ void app_main(void)
 
     register_ota_cmd();
 
+    sniffer_autostart();
+
     // start console REPL
     ESP_ERROR_CHECK(esp_console_start_repl(repl));
 }

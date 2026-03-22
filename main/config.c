@@ -52,8 +52,9 @@ typedef struct config_key {
 static esp_err_t config_get_node_id(char *out, size_t *size);
 
 static const config_key_t config_keys[] = {
-    [CONFIG_INDEX_NODEID]   = { "nodeid",  NVS_TYPE_STR, CONFIG_NODEID_BUFFER_SIZE,   config_get_node_id, NULL },
-    [CONFIG_INDEX_MQTT_URI] = { "mqtturi", NVS_TYPE_STR, CONFIG_MQTT_URI_BUFFER_SIZE, NULL,               NULL },
+    [CONFIG_INDEX_NODEID]         = { "nodeid",           NVS_TYPE_STR, CONFIG_NODEID_BUFFER_SIZE,   config_get_node_id, NULL },
+    [CONFIG_INDEX_MQTT_URI]       = { "mqtturi",          NVS_TYPE_STR, CONFIG_MQTT_URI_BUFFER_SIZE, NULL,               NULL },
+    [CONFIG_INDEX_AUTOSTART_CHAN] = { "autostartchan",    NVS_TYPE_U32, 0,                           NULL,               NULL },
 };
 #define CONFIG_KEYS_END (&config_keys[sizeof(config_keys)/sizeof(*config_keys)])
 
@@ -104,6 +105,262 @@ esp_err_t config_get_node_id(char *out, size_t *size)
     *size = size_copy;
 
     return ESP_OK;
+}
+
+esp_err_t config_get_u8(config_index_t index, uint8_t *out)
+{
+    const config_key_t *key = &config_keys[index];
+
+    if (key->type != NVS_TYPE_U8)
+    {
+        ESP_LOGE(TAG, "Attempt to get key %s with wrong type u8", key->name);
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    if (key->getter)
+        return ((config_u8_getter)key->getter)(out);
+    else
+        return nvs_get_u8(handle, key->name, out);
+}
+
+esp_err_t config_set_u8(config_index_t index, uint8_t value)
+{
+    const config_key_t *key = &config_keys[index];
+
+    if (key->type != NVS_TYPE_U8)
+    {
+        ESP_LOGE(TAG, "Attempt to set key %s with wrong type u8", key->name);
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    if (key->setter)
+        return ((config_u8_setter)key->setter)(value);
+    else
+        return nvs_set_u8(handle, key->name, value);
+}
+
+esp_err_t config_get_u16(config_index_t index, uint16_t *out)
+{
+    const config_key_t *key = &config_keys[index];
+
+    if (key->type != NVS_TYPE_U16)
+    {
+        ESP_LOGE(TAG, "Attempt to get key %s with wrong type u16", key->name);
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    if (key->getter)
+        return ((config_u16_getter)key->getter)(out);
+    else
+        return nvs_get_u16(handle, key->name, out);
+}
+
+esp_err_t config_set_u16(config_index_t index, uint16_t value)
+{
+    const config_key_t *key = &config_keys[index];
+
+    if (key->type != NVS_TYPE_U16)
+    {
+        ESP_LOGE(TAG, "Attempt to set key %s with wrong type u16", key->name);
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    if (key->setter)
+        return ((config_u16_setter)key->setter)(value);
+    else
+        return nvs_set_u16(handle, key->name, value);
+}
+
+esp_err_t config_get_u32(config_index_t index, uint32_t *out)
+{
+    const config_key_t *key = &config_keys[index];
+
+    if (key->type != NVS_TYPE_U32)
+    {
+        ESP_LOGE(TAG, "Attempt to get key %s with wrong type u32", key->name);
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    if (key->getter)
+        return ((config_u32_getter)key->getter)(out);
+    else
+        return nvs_get_u32(handle, key->name, out);
+}
+
+esp_err_t config_set_u32(config_index_t index, uint32_t value)
+{
+    const config_key_t *key = &config_keys[index];
+
+    if (key->type != NVS_TYPE_U32)
+    {
+        ESP_LOGE(TAG, "Attempt to set key %s with wrong type u32", key->name);
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    if (key->setter)
+        return ((config_u32_setter)key->setter)(value);
+    else
+        return nvs_set_u32(handle, key->name, value);
+}
+
+esp_err_t config_get_u64(config_index_t index, uint64_t *out)
+{
+    const config_key_t *key = &config_keys[index];
+
+    if (key->type != NVS_TYPE_U64)
+    {
+        ESP_LOGE(TAG, "Attempt to get key %s with wrong type u64", key->name);
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    if (key->getter)
+        return ((config_u64_getter)key->getter)(out);
+    else
+        return nvs_get_u64(handle, key->name, out);
+}
+
+esp_err_t config_set_u64(config_index_t index, uint64_t value)
+{
+    const config_key_t *key = &config_keys[index];
+
+    if (key->type != NVS_TYPE_U64)
+    {
+        ESP_LOGE(TAG, "Attempt to set key %s with wrong type u64", key->name);
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    if (key->setter)
+        return ((config_u64_setter)key->setter)(value);
+    else
+        return nvs_set_u64(handle, key->name, value);
+}
+
+esp_err_t config_get_i8(config_index_t index, int8_t *out)
+{
+    const config_key_t *key = &config_keys[index];
+
+    if (key->type != NVS_TYPE_I8)
+    {
+        ESP_LOGE(TAG, "Attempt to get key %s with wrong type i8", key->name);
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    if (key->getter)
+        return ((config_i8_getter)key->getter)(out);
+    else
+        return nvs_get_i8(handle, key->name, out);
+}
+
+esp_err_t config_set_i8(config_index_t index, int8_t value)
+{
+    const config_key_t *key = &config_keys[index];
+
+    if (key->type != NVS_TYPE_I8)
+    {
+        ESP_LOGE(TAG, "Attempt to set key %s with wrong type i8", key->name);
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    if (key->setter)
+        return ((config_i8_setter)key->setter)(value);
+    else
+        return nvs_set_i8(handle, key->name, value);
+}
+
+esp_err_t config_get_i16(config_index_t index, int16_t *out)
+{
+    const config_key_t *key = &config_keys[index];
+
+    if (key->type != NVS_TYPE_I16)
+    {
+        ESP_LOGE(TAG, "Attempt to get key %s with wrong type i16", key->name);
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    if (key->getter)
+        return ((config_i16_getter)key->getter)(out);
+    else
+        return nvs_get_i16(handle, key->name, out);
+}
+
+esp_err_t config_set_i16(config_index_t index, int16_t value)
+{
+    const config_key_t *key = &config_keys[index];
+
+    if (key->type != NVS_TYPE_I16)
+    {
+        ESP_LOGE(TAG, "Attempt to set key %s with wrong type i16", key->name);
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    if (key->setter)
+        return ((config_i16_setter)key->setter)(value);
+    else
+        return nvs_set_i16(handle, key->name, value);
+}
+
+esp_err_t config_get_i32(config_index_t index, int32_t *out)
+{
+    const config_key_t *key = &config_keys[index];
+
+    if (key->type != NVS_TYPE_I32)
+    {
+        ESP_LOGE(TAG, "Attempt to get key %s with wrong type i32", key->name);
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    if (key->getter)
+        return ((config_i32_getter)key->getter)(out);
+    else
+        return nvs_get_i32(handle, key->name, out);
+}
+
+esp_err_t config_set_i32(config_index_t index, int32_t value)
+{
+    const config_key_t *key = &config_keys[index];
+
+    if (key->type != NVS_TYPE_I32)
+    {
+        ESP_LOGE(TAG, "Attempt to set key %s with wrong type i32", key->name);
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    if (key->setter)
+        return ((config_i32_setter)key->setter)(value);
+    else
+        return nvs_set_i32(handle, key->name, value);
+}
+
+esp_err_t config_get_i64(config_index_t index, int64_t *out)
+{
+    const config_key_t *key = &config_keys[index];
+
+    if (key->type != NVS_TYPE_I64)
+    {
+        ESP_LOGE(TAG, "Attempt to get key %s with wrong type i64", key->name);
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    if (key->getter)
+        return ((config_i64_getter)key->getter)(out);
+    else
+        return nvs_get_i64(handle, key->name, out);
+}
+
+esp_err_t config_set_i64(config_index_t index, int64_t value)
+{
+    const config_key_t *key = &config_keys[index];
+
+    if (key->type != NVS_TYPE_I64)
+    {
+        ESP_LOGE(TAG, "Attempt to set key %s with wrong type i64", key->name);
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    if (key->setter)
+        return ((config_i64_setter)key->setter)(value);
+    else
+        return nvs_set_i64(handle, key->name, value);
 }
 
 esp_err_t config_get_str(config_index_t index, char *out, size_t *size)
@@ -589,8 +846,51 @@ void register_config_get(void)
     ESP_ERROR_CHECK(esp_console_cmd_register(&cmd));
 }
 
+static struct {
+    arg_str_t *key;
+    arg_end_t *end;
+} config_clear_args;
+
+static int cmd_config_clear(int argc, char **argv)
+{
+    int nerrors = arg_parse(argc, argv, (void **)&config_clear_args);
+    if (nerrors != 0) {
+        arg_print_errors(stderr, config_clear_args.end, argv[0]);
+        return 1;
+    }
+
+    int ret = 0;
+    for (int i = 0; i < config_clear_args.key->count; i++)
+    {
+        int res = nvs_erase_key(handle, config_clear_args.key->sval[i]);
+        if (res != ESP_OK && res != ESP_ERR_NVS_NOT_FOUND)
+        {
+            ESP_LOGE(TAG, "nvs_erase_key failed: %s", esp_err_to_name(res));
+            ret = 1;
+        }
+    }
+
+    return ret;
+}
+
+void register_config_clear(void)
+{
+    config_clear_args.key = arg_strn(NULL, NULL, "key", 1, 20, "the key(s) to clear");
+    config_clear_args.end = arg_end(1);
+
+    const esp_console_cmd_t cmd = {
+        .command = "config_clear",
+        .help = "clear one or more config keys",
+        .hint = NULL,
+        .func = &cmd_config_clear,
+        .argtable = &config_clear_args
+    };
+    ESP_ERROR_CHECK(esp_console_cmd_register(&cmd));
+}
+
 void config_register_commands(void)
 {
     register_config_set();
     register_config_get();
+    register_config_clear();
 }

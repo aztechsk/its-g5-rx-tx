@@ -50,6 +50,8 @@ void sniffer_init(void);
 void register_sniffer_cmd(void);
 esp_err_t sniffer_reg_eth_intf(esp_eth_handle_t eth_handle);
 
+void sniffer_autostart(void);
+
 
 #ifdef __cplusplus
 }
