@@ -54,6 +54,12 @@ static esp_err_t config_get_node_id(char *out, size_t *size);
 static const config_key_t config_keys[] = {
     [CONFIG_INDEX_NODEID]         = { "nodeid",           NVS_TYPE_STR, CONFIG_NODEID_BUFFER_SIZE,   config_get_node_id, NULL },
     [CONFIG_INDEX_MQTT_URI]       = { "mqtturi",          NVS_TYPE_STR, CONFIG_MQTT_URI_BUFFER_SIZE, NULL,               NULL },
+    [CONFIG_INDEX_ETH_IP]         = { "ethip",            NVS_TYPE_STR, CONFIG_IPV4_BUFFER_SIZE,     NULL,               NULL },
+    [CONFIG_INDEX_ETH_NETMASK]    = { "ethnm",            NVS_TYPE_STR, CONFIG_IPV4_BUFFER_SIZE,     NULL,               NULL },
+    [CONFIG_INDEX_ETH_GATEWAY]    = { "ethgw",            NVS_TYPE_STR, CONFIG_IPV4_BUFFER_SIZE,     NULL,               NULL },
+    [CONFIG_INDEX_ETH_DNS0]       = { "ethdns0",          NVS_TYPE_STR, CONFIG_IPV4_BUFFER_SIZE,     NULL,               NULL },
+    [CONFIG_INDEX_ETH_DNS1]       = { "ethdns1",          NVS_TYPE_STR, CONFIG_IPV4_BUFFER_SIZE,     NULL,               NULL },
+    [CONFIG_INDEX_ETH_DNS2]       = { "ethdns2",          NVS_TYPE_STR, CONFIG_IPV4_BUFFER_SIZE,     NULL,               NULL },
     [CONFIG_INDEX_AUTOSTART_CHAN] = { "autostartchan",    NVS_TYPE_U32, 0,                           NULL,               NULL },
 };
 #define CONFIG_KEYS_END (&config_keys[sizeof(config_keys)/sizeof(*config_keys)])
