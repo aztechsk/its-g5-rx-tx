@@ -125,7 +125,7 @@ static void sniffer_task(void *)
 
         mqtt_handle_packet(&packet_info);
 
-        esp_event_post(SNIFFER_EVENT_BASE, PACKET_RECEIVED, NULL, 0, 0);
+        esp_event_post(SNIFFER_EVENT_BASE, SNIFFER_RECEIVED_PACKET, NULL, 0, 0);
 
         free(packet_info.payload);
     }
@@ -176,6 +176,9 @@ static esp_err_t sniffer_stop()
     /* stop pcap session */
     if (write_pcap)
         sniff_packet_stop();
+
+    esp_event_post(SNIFFER_EVENT_BASE, SNIFFER_STOPPED, NULL, 0, 0);
+
 err:
     return ret;
 }
@@ -240,6 +243,9 @@ static esp_err_t sniffer_start()
     default:
         break;
     }
+
+    esp_event_post(SNIFFER_EVENT_BASE, SNIFFER_STARTED, NULL, 0, 0);
+
     return ret;
 err_start:
     // task was already started, need to shut it down gracefully

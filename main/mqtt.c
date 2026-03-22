@@ -24,6 +24,15 @@ static char result_topic[128];
 static char packet_topic[128];
 static char status_topic[128];
 
+static void mqtt_set_connected(bool new_connected)
+{
+    if (new_connected != connected)
+    {
+        connected = new_connected;
+        esp_event_post(MQTT_EVENT_BASE, new_connected ? MQTT_CONNECTED : MQTT_DISCONNECTED, NULL, 0, 0);
+    }
+}
+
 static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_t event_id, void *event_data) {
     ESP_LOGD(TAG, "Event dispatched from event loop base=%s, event_id=%d", base, event_id);
 
@@ -33,7 +42,7 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
     // your_context_t *context = event->context;
     switch (event->event_id) {
         case MQTT_EVENT_CONNECTED:
-            connected = true;
+            mqtt_set_connected(true);
             ESP_LOGI(TAG, "MQTT_EVENT_CONNECTED");
             msg_id = esp_mqtt_client_subscribe(client, command_topic, 0);
             ESP_LOGI(TAG, "sent subscribe successful, msg_id=%d", msg_id);
@@ -42,7 +51,7 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 
             break;
         case MQTT_EVENT_DISCONNECTED:
-            connected = false;
+            mqtt_set_connected(false);
             ESP_LOGI(TAG, "MQTT_EVENT_DISCONNECTED");
             break;
         case MQTT_EVENT_SUBSCRIBED:
@@ -83,7 +92,7 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
             }
             break;
         case MQTT_EVENT_ERROR:
-            connected = false;
+            mqtt_set_connected(false);
             ESP_LOGI(TAG, "MQTT_EVENT_ERROR");
             if (event->error_handle->error_type == MQTT_ERROR_TYPE_TCP_TRANSPORT) {
                 ESP_LOGI(TAG, "Last error code reported from esp-tls: 0x%x", event->error_handle->esp_tls_last_esp_err);
@@ -181,7 +190,7 @@ void mqtt_stop(void)
     }
 
     esp_mqtt_client_stop(client);
-    connected = false;
+    mqtt_set_connected(false);
 
     esp_mqtt_client_handle_t client_ = client;
     client = NULL;

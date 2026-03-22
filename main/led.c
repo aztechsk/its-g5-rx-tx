@@ -9,17 +9,58 @@
 
 esp_timer_handle_t timer_handle;
 led_indicator_handle_t led_handle;
+bool sniffer_running;
+bool mqtt_connected;
 
-static void packet_event_handler(void* arg, esp_event_base_t event_base,
-                                 int32_t event_id, void* event_data)
+static void set_cits_led_idle(void)
 {
-    led_indicator_set_rgb(led_handle, 0xFF);
-    esp_timer_start_once(timer_handle, 50000);
+    led_indicator_set_rgb(led_handle, sniffer_running ? SET_IRGB(0, 0xFF, 0, 0) : SET_IRGB(0, 0, 0xFF, 0));
+}
+
+static void set_cits_led_active(void)
+{
+    led_indicator_set_rgb(led_handle, mqtt_connected ? SET_IRGB(0, 0, 0, 0xFF) : SET_IRGB(0, 0xFF, 0xFF, 0));
+}
+
+static void sniffer_event_handler(void* arg, esp_event_base_t event_base,
+                                  int32_t event_id, void* event_data)
+{
+    switch (event_id)
+    {
+    case SNIFFER_RECEIVED_PACKET:
+        set_cits_led_active();
+        esp_timer_start_once(timer_handle, 50000);
+        break;
+    case SNIFFER_STARTED:
+        sniffer_running = true;
+        set_cits_led_idle();
+        break;
+    case SNIFFER_STOPPED:
+        sniffer_running = false;
+        set_cits_led_idle();
+        break;
+    }
+}
+
+static void mqtt_event_handler(void* arg, esp_event_base_t event_base,
+                               int32_t event_id, void* event_data)
+{
+    switch (event_id)
+    {
+    case MQTT_CONNECTED:
+        mqtt_connected = true;
+        set_cits_led_idle();
+        break;
+    case MQTT_DISCONNECTED:
+        mqtt_connected = false;
+        set_cits_led_idle();
+        break;
+    }
 }
 
 static void timer_cb(void *)
 {
-    led_indicator_set_rgb(led_handle, 0);
+    set_cits_led_idle();
 }
 
 void led_init()
@@ -47,6 +88,8 @@ void led_init()
     };
     ESP_ERROR_CHECK(esp_timer_create(&create_args, &timer_handle));
 
-    ESP_ERROR_CHECK(esp_event_handler_register(SNIFFER_EVENT_BASE, PACKET_RECEIVED, packet_event_handler, NULL));
+    ESP_ERROR_CHECK(esp_event_handler_register(SNIFFER_EVENT_BASE, ESP_EVENT_ANY_ID, sniffer_event_handler, NULL));
+    ESP_ERROR_CHECK(esp_event_handler_register(MQTT_EVENT_BASE, ESP_EVENT_ANY_ID, mqtt_event_handler, NULL));
 
+    led_indicator_set_rgb(led_handle, SET_IRGB(0, 0, 0xFF, 0));
 }
