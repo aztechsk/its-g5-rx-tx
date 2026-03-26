@@ -19,7 +19,7 @@ static void set_cits_led_idle(void)
 
 static void set_cits_led_active(void)
 {
-    led_indicator_set_rgb(led_handle, mqtt_connected ? SET_IRGB(0, 0, 0, 0xFF) : SET_IRGB(0, 0xFF, 0xFF, 0));
+    led_indicator_set_rgb(led_handle, mqtt_connected ? SET_IRGB(0, 0xFF, 0xFF, 0xFF) : SET_IRGB(0, 0xFF, 0xFF, 0));
 }
 
 static void sniffer_event_handler(void* arg, esp_event_base_t event_base,
@@ -29,7 +29,7 @@ static void sniffer_event_handler(void* arg, esp_event_base_t event_base,
     {
     case SNIFFER_RECEIVED_PACKET:
         set_cits_led_active();
-        esp_timer_start_once(timer_handle, 50000);
+        esp_timer_start_once(timer_handle, 2000000);
         break;
     case SNIFFER_STARTED:
         sniffer_running = true;
