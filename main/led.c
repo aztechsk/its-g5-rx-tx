@@ -1,3 +1,5 @@
+#include "sdkconfig.h"
+
 #include "esp_event.h"
 #include "esp_timer.h"
 
@@ -12,14 +14,20 @@ led_indicator_handle_t led_handle;
 bool sniffer_running;
 bool mqtt_connected;
 
+#ifdef CONFIG_LEDSTRIP_RG_SWAPPED
+#define LED_IRGB(i, r, g, b) SET_IRGB(i, g, r, b)
+#else
+#define LED_IRGB(i, r, g, b) SET_IRGB(i, r, g, b)
+#endif
+
 static void set_cits_led_idle(void)
 {
-    led_indicator_set_rgb(led_handle, sniffer_running ? SET_IRGB(0, 0xFF, 0, 0) : SET_IRGB(0, 0, 0xFF, 0));
+    led_indicator_set_rgb(led_handle, sniffer_running ? LED_IRGB(0, 0, 0xFF, 0) : LED_IRGB(0, 0xFF, 0, 0));
 }
 
 static void set_cits_led_active(void)
 {
-    led_indicator_set_rgb(led_handle, mqtt_connected ? SET_IRGB(0, 0xFF, 0xFF, 0xFF) : SET_IRGB(0, 0xFF, 0xFF, 0));
+    led_indicator_set_rgb(led_handle, mqtt_connected ? LED_IRGB(0, 0xFF, 0xFF, 0xFF) : LED_IRGB(0, 0xFF, 0xFF, 0));
 }
 
 static void sniffer_event_handler(void* arg, esp_event_base_t event_base,
@@ -67,8 +75,8 @@ void led_init()
 {
     led_indicator_strips_config_t strips_config = {
         .led_strip_cfg = {
-            .strip_gpio_num = 27,
-            .max_leds = 1,
+            .strip_gpio_num = CONFIG_LEDSTRIP_PIN,
+            .max_leds = 5,
             .led_pixel_format = LED_PIXEL_FORMAT_GRB,
             .led_model = LED_MODEL_WS2812
         },
