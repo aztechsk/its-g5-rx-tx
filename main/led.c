@@ -14,7 +14,7 @@ led_indicator_handle_t led_handle;
 bool sniffer_running;
 bool mqtt_connected;
 
-#ifdef CONFIG_LEDSTRIP_RG_SWAPPED
+#ifdef CONFIG_LEDSTRIP_FORMAT_RGB
 #define LED_IRGB(i, r, g, b) SET_IRGB(i, g, r, b)
 #else
 #define LED_IRGB(i, r, g, b) SET_IRGB(i, r, g, b)
@@ -99,5 +99,5 @@ void led_init()
     ESP_ERROR_CHECK(esp_event_handler_register(SNIFFER_EVENT_BASE, ESP_EVENT_ANY_ID, sniffer_event_handler, NULL));
     ESP_ERROR_CHECK(esp_event_handler_register(MQTT_EVENT_BASE, ESP_EVENT_ANY_ID, mqtt_event_handler, NULL));
 
-    led_indicator_set_rgb(led_handle, SET_IRGB(0, 0, 0xFF, 0));
+    set_cits_led_idle();
 }
