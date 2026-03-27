@@ -133,10 +133,4 @@ menu "Example Configuration"
         help
             GPIO number where the LED strip is connected
 
-    config LEDSTRIP_FORMAT_RGB
-        bool "LED has RGB format instead of GRB"
-        default y
-        help
-            LED has RGB format instead of GRB. The R and G channels will be swapped in led.c, as Espressif's library does not support RGB.
-
 endmenu

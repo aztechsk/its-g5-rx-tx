@@ -14,11 +14,7 @@ led_indicator_handle_t led_handle;
 bool sniffer_running;
 bool mqtt_connected;
 
-#ifdef CONFIG_LEDSTRIP_FORMAT_RGB
-#define LED_IRGB(i, r, g, b) SET_IRGB(i, g, r, b)
-#else
 #define LED_IRGB(i, r, g, b) SET_IRGB(i, r, g, b)
-#endif
 
 static void set_cits_led_idle(void)
 {
