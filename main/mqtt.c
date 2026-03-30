@@ -202,10 +202,10 @@ static void app_event_handler(void *handler_args, esp_event_base_t base, int32_t
 {
     switch (event_id)
     {
-    case APP_ETHERNET_MGMT_INTERFACE_CONNECTED:
+    case APP_ETHERNET_MGMT_INTERFACE_GOT_IP:
         mqtt_start();
         break;
-    case APP_ETHERNET_MGMT_INTERFACE_DISCONNECTED:
+    case APP_ETHERNET_MGMT_INTERFACE_LOST_IP:
         mqtt_stop();
         break;
     }

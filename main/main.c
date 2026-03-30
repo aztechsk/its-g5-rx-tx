@@ -112,15 +112,16 @@ void register_reboot(void)
 
 void app_main(void)
 {
+    ESP_ERROR_CHECK(esp_event_loop_create_default());
     esp_timer_init();
 
     config_init();
 
+    led_init();
+
     initialize_filesystem();
 
     initialize_spi();
-
-    ESP_ERROR_CHECK(esp_event_loop_create_default());
 
     // Make sure MQTT has registered its event handlers before Ethernet goes up
     mqtt_init();
@@ -136,8 +137,6 @@ void app_main(void)
 
     sniffer_init();
     ota_init();
-
-    led_init();
 
     /* Register commands */
 #if CONFIG_ENABLE_SD
@@ -156,4 +155,6 @@ void app_main(void)
 
     // start console REPL
     ESP_ERROR_CHECK(esp_console_start_repl(repl));
+
+    led_update();
 }

@@ -41,12 +41,26 @@ static void eth_event_handler(void *arg, esp_event_base_t event_base,
         esp_eth_ioctl(eth_handle, ETH_CMD_G_MAC_ADDR, mac_addr);
         ESP_LOGI(TAG, "Ethernet link up, HW addr %02x:%02x:%02x:%02x:%02x:%02x",
                  mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5]);
+        if (eth_handle == mgmt_eth)
+        {
+            esp_err_t post_res = esp_event_post(APP_EVENT_BASE, APP_ETHERNET_MGMT_INTERFACE_CONNECTED, NULL, 0, 0);
+            if (post_res != ESP_OK)
+            {
+                ESP_LOGE(TAG, "esp_event_post failed: %s", esp_err_to_name(post_res));
+            }
+        }
         break;
     case ETHERNET_EVENT_DISCONNECTED:
         ESP_LOGI(TAG, "Ethernet link down");
         if (eth_handle == mgmt_eth)
         {
-            esp_err_t post_res = esp_event_post(APP_EVENT_BASE, APP_ETHERNET_MGMT_INTERFACE_DISCONNECTED, NULL, 0, 0);
+            esp_err_t post_res = esp_event_post(APP_EVENT_BASE, APP_ETHERNET_MGMT_INTERFACE_LOST_IP, NULL, 0, 0);
+            if (post_res != ESP_OK)
+            {
+                ESP_LOGE(TAG, "esp_event_post failed: %s", esp_err_to_name(post_res));
+            }
+
+            post_res = esp_event_post(APP_EVENT_BASE, APP_ETHERNET_MGMT_INTERFACE_DISCONNECTED, NULL, 0, 0);
             if (post_res != ESP_OK)
             {
                 ESP_LOGE(TAG, "esp_event_post failed: %s", esp_err_to_name(post_res));
@@ -87,11 +101,9 @@ static void ip_event_handler(void *arg, esp_event_base_t event_base,
             // If this is the management netif, post an event to start MQTT etc.
             if (event->esp_netif == mgmt_netif)
             {
-                esp_err_t post_res = esp_event_post(APP_EVENT_BASE, APP_ETHERNET_MGMT_INTERFACE_CONNECTED, NULL, 0, 0);
+                esp_err_t post_res = esp_event_post(APP_EVENT_BASE, APP_ETHERNET_MGMT_INTERFACE_GOT_IP, NULL, 0, 0);
                 if (post_res != ESP_OK)
-                {
                     ESP_LOGE(TAG, "esp_event_post failed: %s", esp_err_to_name(post_res));
-                }
             }
             break;
         }
@@ -102,11 +114,9 @@ static void ip_event_handler(void *arg, esp_event_base_t event_base,
         // If this is the management netif, post an event to stop MQTT etc.
         if (event->esp_netif == mgmt_netif)
         {
-            esp_err_t post_res = esp_event_post(APP_EVENT_BASE, APP_ETHERNET_MGMT_INTERFACE_DISCONNECTED, NULL, 0, 0);
+            esp_err_t post_res = esp_event_post(APP_EVENT_BASE, APP_ETHERNET_MGMT_INTERFACE_LOST_IP, NULL, 0, 0);
             if (post_res != ESP_OK)
-            {
                 ESP_LOGE(TAG, "esp_event_post failed: %s", esp_err_to_name(post_res));
-            }
         }
         break;
     }
@@ -119,7 +129,7 @@ static void ip_event_handler(void *arg, esp_event_base_t event_base,
         {
             eth_config_dns(event->esp_netif);
 
-            esp_err_t post_res = esp_event_post(APP_EVENT_BASE, APP_ETHERNET_MGMT_INTERFACE_CONNECTED, NULL, 0, 0);
+            esp_err_t post_res = esp_event_post(APP_EVENT_BASE, APP_ETHERNET_MGMT_INTERFACE_GOT_IP, NULL, 0, 0);
             if (post_res != ESP_OK)
             {
                 ESP_LOGE(TAG, "esp_event_post failed: %s", esp_err_to_name(post_res));
@@ -234,3 +244,21 @@ void initialize_ethernet(void)
     }
 }
 
+eth_speed_t ethernet_get_mgmt_if_link_speed(void)
+{
+    if (!mgmt_eth)
+    {
+        ESP_LOGW(TAG, "mgmt_eth is null, cannot get speed");
+        return ETH_SPEED_10M;
+    }
+
+    eth_speed_t speed;
+    esp_err_t result = esp_eth_ioctl(mgmt_eth, ETH_CMD_G_SPEED, &speed);
+    if (result != ESP_OK)
+    {
+        ESP_LOGE(TAG, "esp_eth_ioctl failed: %s", esp_err_to_name(result));
+        return ETH_SPEED_10M;
+    }
+
+    return speed;
+}
