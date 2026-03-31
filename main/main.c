@@ -23,6 +23,7 @@
 #include "ota.h"
 #include "sdcard.h"
 #include "spi.h"
+#include "temperature.h"
 
 #if CONFIG_SNIFFER_STORE_HISTORY
 #define HISTORY_MOUNT_POINT "/data"
@@ -137,6 +138,8 @@ void app_main(void)
 
     sniffer_init();
     ota_init();
+
+    temperature_init();
 
     /* Register commands */
 #if CONFIG_ENABLE_SD

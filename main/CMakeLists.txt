@@ -11,6 +11,7 @@ idf_component_register(
         "ota.c"
         "sdcard.c"
         "spi.c"
+        "temperature.c"
     PRIV_REQUIRES
         app_trace
         app_update
