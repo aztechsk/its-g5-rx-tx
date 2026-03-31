@@ -20,6 +20,8 @@
 // TODO make configurable?
 #define ETH_MANAGEMENT_INTERFACE 0
 
+#define MAX_MTU 1420
+
 static const char TAG[] = "ETHERNET";
 
 static esp_netif_t *mgmt_netif;
@@ -78,11 +80,30 @@ static void eth_event_handler(void *arg, esp_event_base_t event_base,
     }
 }
 
+static void update_mtu(esp_netif_t *netif)
+{
+    uint16_t mtu;
+    esp_err_t res = esp_netif_get_mtu(netif, &mtu);
+    if (res != ESP_OK)
+    {
+        ESP_LOGE(TAG, "esp_netif_get_mtu failed: %s", esp_err_to_name(res));
+        return;
+    }
+
+    if (mtu > MAX_MTU)
+    {
+        res = esp_netif_set_mtu(netif, MAX_MTU);
+        if (res != ESP_OK)
+            ESP_LOGE(TAG, "esp_netif_set_mtu failed: %s", esp_err_to_name(res));
+    }
+}
+
 /** Event handler for IP events */
 static void ip_event_handler(void *arg, esp_event_base_t event_base,
                               int32_t event_id, void *event_data)
 {
     ip_event_got_ip_t *event = (ip_event_got_ip_t *) event_data;
+    esp_netif_t *netif = event->esp_netif;
 
     char ifname[NETIF_NAMESIZE] = {0};
     esp_err_t res = esp_netif_get_netif_impl_name(event->esp_netif, ifname);
@@ -98,8 +119,10 @@ static void ip_event_handler(void *arg, esp_event_base_t event_base,
             const esp_netif_ip_info_t *ip_info = &event->ip_info;
             ESP_LOGI(TAG, "Ethernet %s got IP: " IPSTR " netmask: " IPSTR " gw: " IPSTR, ifname, IP2STR(&ip_info->ip), IP2STR(&ip_info->netmask), IP2STR(&ip_info->gw));
 
+            update_mtu(netif);
+
             // If this is the management netif, post an event to start MQTT etc.
-            if (event->esp_netif == mgmt_netif)
+            if (netif == mgmt_netif)
             {
                 esp_err_t post_res = esp_event_post(APP_EVENT_BASE, APP_ETHERNET_MGMT_INTERFACE_GOT_IP, NULL, 0, 0);
                 if (post_res != ESP_OK)
@@ -112,7 +135,7 @@ static void ip_event_handler(void *arg, esp_event_base_t event_base,
         ESP_LOGI(TAG, "Ethernet %s lost IP", ifname);
 
         // If this is the management netif, post an event to stop MQTT etc.
-        if (event->esp_netif == mgmt_netif)
+        if (netif == mgmt_netif)
         {
             esp_err_t post_res = esp_event_post(APP_EVENT_BASE, APP_ETHERNET_MGMT_INTERFACE_LOST_IP, NULL, 0, 0);
             if (post_res != ESP_OK)
@@ -124,10 +147,12 @@ static void ip_event_handler(void *arg, esp_event_base_t event_base,
     {
         ESP_LOGI(TAG, "Ethernet %s up", ifname);
 
-        // If this is the management netif, post an event to start MQTT etc.
-        if (event->esp_netif == mgmt_netif && static_ip)
+        // If this is the management netif and we have a static IP, configure some things and
+        // fire an event to start MQTT etc.
+        if (netif == mgmt_netif && static_ip)
         {
-            eth_config_dns(event->esp_netif);
+            eth_config_dns(netif);
+            update_mtu(netif);
 
             esp_err_t post_res = esp_event_post(APP_EVENT_BASE, APP_ETHERNET_MGMT_INTERFACE_GOT_IP, NULL, 0, 0);
             if (post_res != ESP_OK)
@@ -204,6 +229,7 @@ void initialize_ethernet(void)
 
             esp_netif_inherent_config_t esp_netif_config = ESP_NETIF_INHERENT_DEFAULT_ETH();
             esp_netif_config.route_prio -= i * 5;
+            esp_netif_config.mtu = MAX_MTU;
 
             char ip_str[CONFIG_IPV4_BUFFER_SIZE] = {0};
             char nm_str[CONFIG_IPV4_BUFFER_SIZE] = {0};
@@ -256,7 +282,7 @@ eth_speed_t ethernet_get_mgmt_if_link_speed(void)
     esp_err_t result = esp_eth_ioctl(mgmt_eth, ETH_CMD_G_SPEED, &speed);
     if (result != ESP_OK)
     {
-        ESP_LOGE(TAG, "esp_eth_ioctl failed: %s", esp_err_to_name(result));
+        ESP_LOGW(TAG, "esp_eth_ioctl failed: %s", esp_err_to_name(result));
         return ETH_SPEED_10M;
     }
 
