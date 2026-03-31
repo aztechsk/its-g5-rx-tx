@@ -8,6 +8,7 @@
 
 #include "led_indicator.h"
 
+#include "config.h"
 #include "ethernet.h"
 #include "events.h"
 
@@ -34,22 +35,38 @@ static uint32_t eth_led_state     = LED_IRGB(LED_ETH,        0,    0,    0);
 static uint32_t cits_led_state    = LED_IRGB(LED_CITS,       0,    0,    0);
 static uint32_t mqtt_led_state    = LED_IRGB(LED_MQTT,       0,    0,    0);
 
-bool system_led_blink_state;
+static bool system_led_blink_state;
 
-esp_timer_handle_t system_led_timer_handle;
-esp_timer_handle_t cits_led_timer_handle;
-esp_timer_handle_t eth_led_timer_handle;
+static esp_timer_handle_t system_led_timer_handle;
+static esp_timer_handle_t cits_led_timer_handle;
+static esp_timer_handle_t eth_led_timer_handle;
 
-eth_speed_t eth_speed;
-bool eth_link_state;
-bool eth_led_blink_state;
+static eth_speed_t eth_speed;
+static bool eth_link_state;
+static bool eth_led_blink_state;
+
+static uint8_t led_brightness;
+
+static void set_led_with_brightness(led_indicator_handle_t handle, uint32_t irgb)
+{
+    uint8_t i = GET_INDEX(irgb);
+    uint8_t r = GET_RED(irgb);
+    uint8_t g = GET_GREEN(irgb);
+    uint8_t b = GET_BLUE(irgb);
+
+    r = ((uint32_t)r) * ((uint32_t)led_brightness) / 255u;
+    g = ((uint32_t)g) * ((uint32_t)led_brightness) / 255u;
+    b = ((uint32_t)b) * ((uint32_t)led_brightness) / 255u;
+
+    led_indicator_set_rgb(handle, SET_IRGB(i, r, g, b));
+}
 
 static void set_eth_led_disconnected(void)
 {
     esp_timer_stop_blocking(eth_led_timer_handle, 10 / portTICK_PERIOD_MS);
 
     eth_led_state = LED_IRGB(LED_ETH, 0, 0, 0);
-    led_indicator_set_rgb(led_handle, mqtt_led_state);
+    set_led_with_brightness(led_handle, eth_led_state);
 }
 
 static void set_eth_led_connected(void)
@@ -58,7 +75,7 @@ static void set_eth_led_connected(void)
 
     eth_led_blink_state = false;
     eth_led_state = LED_IRGB(LED_ETH, 0, 0, 0);
-    led_indicator_set_rgb(led_handle, eth_led_state);
+    set_led_with_brightness(led_handle, eth_led_state);
 
     esp_timer_start_periodic(eth_led_timer_handle, 500000);
 }
@@ -68,49 +85,49 @@ static void set_eth_led_connected_with_ip(void)
     esp_timer_stop_blocking(eth_led_timer_handle, 10 / portTICK_PERIOD_MS);
 
     eth_led_state = eth_speed == ETH_SPEED_100M ? LED_ETH_COLOR_100M : LED_ETH_COLOR_10M;
-    led_indicator_set_rgb(led_handle, eth_led_state);
+    set_led_with_brightness(led_handle, eth_led_state);
 }
 
 static void set_mqtt_led_destroyed(void)
 {
     mqtt_led_state = LED_IRGB(LED_MQTT, 0, 0, 0);
-    led_indicator_set_rgb(led_handle, mqtt_led_state);
+    set_led_with_brightness(led_handle, mqtt_led_state);
 }
 
 static void set_mqtt_led_disconnected(void)
 {
     mqtt_led_state = LED_IRGB(LED_MQTT, 0xFF, 0xFF, 0);
-    led_indicator_set_rgb(led_handle, mqtt_led_state);
+    set_led_with_brightness(led_handle, mqtt_led_state);
 }
 
 static void set_mqtt_led_connected(void)
 {
     mqtt_led_state = LED_IRGB(LED_MQTT, 0, 0xFF, 0);
-    led_indicator_set_rgb(led_handle, mqtt_led_state);
+    set_led_with_brightness(led_handle, mqtt_led_state);
 }
 
 static void set_cits_led_idle(void)
 {
     cits_led_state = LED_IRGB(LED_CITS, 0, 0, 0);
-    led_indicator_set_rgb(led_handle, cits_led_state);
+    set_led_with_brightness(led_handle, cits_led_state);
 }
 
 static void set_cits_led_active(void)
 {
     cits_led_state = mqtt_connected ? LED_IRGB(LED_CITS, 0, 0, 0xFF) : LED_IRGB(LED_CITS, 0xFF, 0xA0, 0);
-    led_indicator_set_rgb(led_handle, cits_led_state);
+    set_led_with_brightness(led_handle, cits_led_state);
 }
 
 static void set_sniffer_led_stopped(void)
 {
     sniffer_led_state = LED_IRGB(LED_SNIFFER, 0xFF, 0, 0);
-    led_indicator_set_rgb(led_handle, sniffer_led_state);
+    set_led_with_brightness(led_handle, sniffer_led_state);
 }
 
 static void set_sniffer_led_running(void)
 {
     sniffer_led_state = LED_IRGB(LED_SNIFFER, 0, 0xFF, 0);
-    led_indicator_set_rgb(led_handle, sniffer_led_state);
+    set_led_with_brightness(led_handle, sniffer_led_state);
 }
 
 static void app_event_handler(void *handler_args, esp_event_base_t base, int32_t event_id, void *event_data)
@@ -185,7 +202,7 @@ static void mqtt_event_handler(void* arg, esp_event_base_t event_base,
 
 static void system_led_timer_cb(void *)
 {
-    led_indicator_set_rgb(led_handle, system_led_blink_state ?
+    set_led_with_brightness(led_handle, system_led_blink_state ?
                               LED_IRGB(LED_SYSTEM, 0xFF, 0xFF, 0xFF) :
                               LED_IRGB(LED_SYSTEM, 0, 0, 0));
     system_led_blink_state = !system_led_blink_state;
@@ -196,7 +213,7 @@ static void eth_led_timer_cb(void *)
     eth_led_state = eth_led_blink_state ?
                 (eth_speed == ETH_SPEED_100M ? LED_ETH_COLOR_100M : LED_ETH_COLOR_10M) :
                 LED_IRGB(LED_ETH, 0, 0, 0);
-    led_indicator_set_rgb(led_handle, eth_led_state);
+    set_led_with_brightness(led_handle, eth_led_state);
 
     eth_led_blink_state = !eth_led_blink_state;
 }
@@ -208,11 +225,16 @@ static void cits_led_timer_cb(void *)
 
 void led_update(void)
 {
-    led_indicator_set_rgb(led_handle, system_led_state);
-    led_indicator_set_rgb(led_handle, sniffer_led_state);
-    led_indicator_set_rgb(led_handle, eth_led_state);
-    led_indicator_set_rgb(led_handle, mqtt_led_state);
-    led_indicator_set_rgb(led_handle, cits_led_state);
+    uint8_t brightness;
+    // brightness receives the default value of 255 in led.c, and thus cannot fail
+    ESP_ERROR_CHECK(config_get_u8(CONFIG_INDEX_LED_BRIGHTNESS, &brightness));
+    led_brightness = brightness;
+
+    set_led_with_brightness(led_handle, system_led_state);
+    set_led_with_brightness(led_handle, sniffer_led_state);
+    set_led_with_brightness(led_handle, eth_led_state);
+    set_led_with_brightness(led_handle, mqtt_led_state);
+    set_led_with_brightness(led_handle, cits_led_state);
 
     esp_timer_start_periodic(system_led_timer_handle, 1000000);
 }
@@ -254,9 +276,14 @@ void led_init(void)
     ESP_ERROR_CHECK(esp_event_handler_register(MQTT_EVENT_BASE, ESP_EVENT_ANY_ID, mqtt_event_handler, NULL));
     ESP_ERROR_CHECK(esp_event_handler_register(APP_EVENT_BASE, ESP_EVENT_ANY_ID, app_event_handler, NULL));
 
-    led_indicator_set_rgb(led_handle, LED_IRGB(0, 0xFF,    0,    0));
-    led_indicator_set_rgb(led_handle, LED_IRGB(1, 0xFF, 0xFF,    0));
-    led_indicator_set_rgb(led_handle, LED_IRGB(2,    0, 0xFF,    0));
-    led_indicator_set_rgb(led_handle, LED_IRGB(3,    0,    0, 0xFF));
-    led_indicator_set_rgb(led_handle, LED_IRGB(4, 0xFF,    0, 0xFF));
+    uint8_t brightness;
+    // brightness receives the default value of 255 in led.c, and thus cannot fail
+    ESP_ERROR_CHECK(config_get_u8(CONFIG_INDEX_LED_BRIGHTNESS, &brightness));
+    led_brightness = brightness;
+
+    set_led_with_brightness(led_handle, LED_IRGB(0, 0xFF,    0,    0));
+    set_led_with_brightness(led_handle, LED_IRGB(1, 0xFF, 0xFF,    0));
+    set_led_with_brightness(led_handle, LED_IRGB(2,    0, 0xFF,    0));
+    set_led_with_brightness(led_handle, LED_IRGB(3,    0,    0, 0xFF));
+    set_led_with_brightness(led_handle, LED_IRGB(4, 0xFF,    0, 0xFF));
 }

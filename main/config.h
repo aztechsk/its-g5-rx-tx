@@ -17,7 +17,8 @@ typedef enum {
     CONFIG_INDEX_ETH_DNS0,
     CONFIG_INDEX_ETH_DNS1,
     CONFIG_INDEX_ETH_DNS2,
-    CONFIG_INDEX_AUTOSTART_CHAN
+    CONFIG_INDEX_AUTOSTART_CHAN,
+    CONFIG_INDEX_LED_BRIGHTNESS,
 } config_index_t;
 
 esp_err_t config_get_u8(config_index_t index, uint8_t *out);

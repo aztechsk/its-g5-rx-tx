@@ -50,17 +50,19 @@ typedef struct config_key {
 } config_key_t;
 
 static esp_err_t config_get_node_id(char *out, size_t *size);
+static esp_err_t config_get_led_brightness(uint8_t *led_brightness);
 
 static const config_key_t config_keys[] = {
-    [CONFIG_INDEX_NODEID]         = { "nodeid",           NVS_TYPE_STR, CONFIG_NODEID_BUFFER_SIZE,   config_get_node_id, NULL },
-    [CONFIG_INDEX_MQTT_URI]       = { "mqtturi",          NVS_TYPE_STR, CONFIG_MQTT_URI_BUFFER_SIZE, NULL,               NULL },
-    [CONFIG_INDEX_ETH_IP]         = { "ethip",            NVS_TYPE_STR, CONFIG_IPV4_BUFFER_SIZE,     NULL,               NULL },
-    [CONFIG_INDEX_ETH_NETMASK]    = { "ethnm",            NVS_TYPE_STR, CONFIG_IPV4_BUFFER_SIZE,     NULL,               NULL },
-    [CONFIG_INDEX_ETH_GATEWAY]    = { "ethgw",            NVS_TYPE_STR, CONFIG_IPV4_BUFFER_SIZE,     NULL,               NULL },
-    [CONFIG_INDEX_ETH_DNS0]       = { "ethdns0",          NVS_TYPE_STR, CONFIG_IPV4_BUFFER_SIZE,     NULL,               NULL },
-    [CONFIG_INDEX_ETH_DNS1]       = { "ethdns1",          NVS_TYPE_STR, CONFIG_IPV4_BUFFER_SIZE,     NULL,               NULL },
-    [CONFIG_INDEX_ETH_DNS2]       = { "ethdns2",          NVS_TYPE_STR, CONFIG_IPV4_BUFFER_SIZE,     NULL,               NULL },
-    [CONFIG_INDEX_AUTOSTART_CHAN] = { "autostartchan",    NVS_TYPE_U32, 0,                           NULL,               NULL },
+    [CONFIG_INDEX_NODEID]         = { "nodeid",           NVS_TYPE_STR, CONFIG_NODEID_BUFFER_SIZE,   config_get_node_id,        NULL },
+    [CONFIG_INDEX_MQTT_URI]       = { "mqtturi",          NVS_TYPE_STR, CONFIG_MQTT_URI_BUFFER_SIZE, NULL,                      NULL },
+    [CONFIG_INDEX_ETH_IP]         = { "ethip",            NVS_TYPE_STR, CONFIG_IPV4_BUFFER_SIZE,     NULL,                      NULL },
+    [CONFIG_INDEX_ETH_NETMASK]    = { "ethnm",            NVS_TYPE_STR, CONFIG_IPV4_BUFFER_SIZE,     NULL,                      NULL },
+    [CONFIG_INDEX_ETH_GATEWAY]    = { "ethgw",            NVS_TYPE_STR, CONFIG_IPV4_BUFFER_SIZE,     NULL,                      NULL },
+    [CONFIG_INDEX_ETH_DNS0]       = { "ethdns0",          NVS_TYPE_STR, CONFIG_IPV4_BUFFER_SIZE,     NULL,                      NULL },
+    [CONFIG_INDEX_ETH_DNS1]       = { "ethdns1",          NVS_TYPE_STR, CONFIG_IPV4_BUFFER_SIZE,     NULL,                      NULL },
+    [CONFIG_INDEX_ETH_DNS2]       = { "ethdns2",          NVS_TYPE_STR, CONFIG_IPV4_BUFFER_SIZE,     NULL,                      NULL },
+    [CONFIG_INDEX_AUTOSTART_CHAN] = { "autostartchan",    NVS_TYPE_U32, 0,                           NULL,                      NULL },
+    [CONFIG_INDEX_LED_BRIGHTNESS] = { "ledbrightness",    NVS_TYPE_U8,  0,                           config_get_led_brightness, NULL },
 };
 #define CONFIG_KEYS_END (&config_keys[sizeof(config_keys)/sizeof(*config_keys)])
 
@@ -77,7 +79,7 @@ void config_init(void)
     ESP_ERROR_CHECK(nvs_open("its", NVS_READWRITE, &handle));
 }
 
-esp_err_t config_get_node_id(char *out, size_t *size)
+static esp_err_t config_get_node_id(char *out, size_t *size)
 {
     size_t size_copy = *size;
 
@@ -110,6 +112,22 @@ esp_err_t config_get_node_id(char *out, size_t *size)
 
     *size = size_copy;
 
+    return ESP_OK;
+}
+
+static esp_err_t config_get_led_brightness(uint8_t *led_brightness)
+{
+    uint8_t out;
+    esp_err_t res = nvs_get_u8(handle, "ledbrightness", &out);
+    if (res != ESP_OK)
+    {
+        if (res != ESP_ERR_NVS_NOT_FOUND)
+            ESP_LOGE(TAG, "nvs_get_u8 failed: %s", esp_err_to_name(res));
+
+        out = 255;
+    }
+
+    *led_brightness = out;
     return ESP_OK;
 }
 
