@@ -74,7 +74,7 @@ void temperature_init(void)
         return;
     }
 
-    res = esp_timer_start_periodic(timer_handle, 1000000);
+    res = esp_timer_start_periodic(timer_handle, 10000000);
     if (res != ESP_OK)
     {
         ESP_LOGW(TAG, "esp_timer_create failed: %s", esp_err_to_name(res));
