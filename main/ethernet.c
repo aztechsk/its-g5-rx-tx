@@ -199,6 +199,72 @@ static void eth_config_dns(esp_netif_t *netif)
     eth_config_dns_server(netif, CONFIG_INDEX_ETH_DNS2, ESP_NETIF_DNS_FALLBACK);
 }
 
+static void set_hostname_from_config(esp_netif_t *netif)
+{
+    char nodeid[CONFIG_NODEID_BUFFER_SIZE];
+    size_t size = sizeof(nodeid);
+    esp_err_t res = config_get_str(CONFIG_INDEX_NODEID, nodeid, &size);
+    if (res != ESP_OK)
+    {
+        ESP_LOGW(TAG, "getting nodeid from config failed: %s", esp_err_to_name(res));
+        return;
+    }
+
+    char hostname[32 + 1] = "its_";
+    strncpy(hostname + sizeof("its_") - 1, nodeid, sizeof(hostname) - sizeof("its_"));
+
+    res = esp_netif_set_hostname(netif, hostname);
+    if (res != ESP_OK)
+        ESP_LOGW(TAG, "esp_netif_set_hostname failed: %s", esp_err_to_name(res));
+}
+
+static void configure_management_interface(esp_eth_handle_t *eth_handle, int idx)
+{
+    ESP_ERROR_CHECK(esp_netif_init());
+
+    esp_netif_inherent_config_t esp_netif_config = ESP_NETIF_INHERENT_DEFAULT_ETH();
+    esp_netif_config.route_prio -= idx * 5;
+    esp_netif_config.mtu = MAX_MTU;
+
+    char ip_str[CONFIG_IPV4_BUFFER_SIZE] = {0};
+    char nm_str[CONFIG_IPV4_BUFFER_SIZE] = {0};
+    char gw_str[CONFIG_IPV4_BUFFER_SIZE] = {0};
+
+    size_t ip_size = sizeof(ip_str);
+    size_t nm_size = sizeof(nm_str);
+    size_t gw_size = sizeof(gw_str);
+
+    ip4_addr_t ip, nm, gw;
+    esp_netif_ip_info_t ip_info = {0};
+
+    if (config_get_str(CONFIG_INDEX_ETH_IP, ip_str, &ip_size) == ESP_OK &&
+        config_get_str(CONFIG_INDEX_ETH_NETMASK, nm_str, &nm_size) == ESP_OK &&
+        config_get_str(CONFIG_INDEX_ETH_GATEWAY, gw_str, &gw_size) == ESP_OK &&
+        ip_size && nm_size && gw_size &&
+        inet_aton(ip_str, &ip) && inet_aton(nm_str, &nm) && inet_aton(gw_str, &gw))
+    {
+        ip_info.ip.addr = ip.addr;
+        ip_info.netmask.addr = nm.addr;
+        ip_info.gw.addr = gw.addr;
+        esp_netif_config.ip_info = &ip_info;
+
+        esp_netif_config.flags &= ~ESP_NETIF_DHCP_CLIENT;
+        static_ip = true;
+    }
+
+    esp_netif_config_t cfg = ESP_NETIF_DEFAULT_ETH();
+    cfg.base = &esp_netif_config;
+    esp_netif_t *eth_netif = esp_netif_new(&cfg);
+
+    set_hostname_from_config(eth_netif);
+
+    mgmt_netif = eth_netif;
+    mgmt_eth = eth_handle;
+
+    ESP_ERROR_CHECK(esp_netif_attach(eth_netif, esp_eth_new_netif_glue(eth_handle)));
+    ESP_ERROR_CHECK(esp_eth_start(eth_handle));
+}
+
 void initialize_ethernet(void)
 {
     // Initialize Ethernet driver
@@ -225,47 +291,7 @@ void initialize_ethernet(void)
         {
             // Start management ethernet interface
             ESP_LOGD(TAG, "Configuring management ethernet interface %d", i);
-            ESP_ERROR_CHECK(esp_netif_init());
-
-            esp_netif_inherent_config_t esp_netif_config = ESP_NETIF_INHERENT_DEFAULT_ETH();
-            esp_netif_config.route_prio -= i * 5;
-            esp_netif_config.mtu = MAX_MTU;
-
-            char ip_str[CONFIG_IPV4_BUFFER_SIZE] = {0};
-            char nm_str[CONFIG_IPV4_BUFFER_SIZE] = {0};
-            char gw_str[CONFIG_IPV4_BUFFER_SIZE] = {0};
-
-            size_t ip_size = sizeof(ip_str);
-            size_t nm_size = sizeof(nm_str);
-            size_t gw_size = sizeof(gw_str);
-
-            ip4_addr_t ip, nm, gw;
-            esp_netif_ip_info_t ip_info = {0};
-
-            if (config_get_str(CONFIG_INDEX_ETH_IP, ip_str, &ip_size) == ESP_OK &&
-                config_get_str(CONFIG_INDEX_ETH_NETMASK, nm_str, &nm_size) == ESP_OK &&
-                config_get_str(CONFIG_INDEX_ETH_GATEWAY, gw_str, &gw_size) == ESP_OK &&
-                ip_size && nm_size && gw_size &&
-                inet_aton(ip_str, &ip) && inet_aton(nm_str, &nm) && inet_aton(gw_str, &gw))
-            {
-                ip_info.ip.addr = ip.addr;
-                ip_info.netmask.addr = nm.addr;
-                ip_info.gw.addr = gw.addr;
-                esp_netif_config.ip_info = &ip_info;
-
-                esp_netif_config.flags &= ~ESP_NETIF_DHCP_CLIENT;
-                static_ip = true;
-            }
-
-            esp_netif_config_t cfg = ESP_NETIF_DEFAULT_ETH();
-            cfg.base = &esp_netif_config;
-            esp_netif_t *eth_netif = esp_netif_new(&cfg);
-
-            mgmt_netif = eth_netif;
-            mgmt_eth = eth_handles[i];
-
-            ESP_ERROR_CHECK(esp_netif_attach(eth_netif, esp_eth_new_netif_glue(eth_handles[i])));
-            ESP_ERROR_CHECK(esp_eth_start(eth_handles[i]));
+            configure_management_interface(eth_handles[i], i);
         }
     }
 }
