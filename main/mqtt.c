@@ -1,10 +1,12 @@
 #include "sdkconfig.h"
 
 #include <stdbool.h>
+#include <string.h>
 
 #include "esp_console.h"
 #include "esp_crt_bundle.h"
 #include "esp_log.h"
+#include "esp_mac.h"
 #include "mqtt_client.h"
 
 #include "cmd_sniffer.h"
@@ -23,6 +25,7 @@ static char command_topic[128];
 static char result_topic[128];
 static char packet_topic[128];
 static char status_topic[128];
+static char info_topic[128];
 
 static void mqtt_set_connected(bool new_connected)
 {
@@ -31,6 +34,32 @@ static void mqtt_set_connected(bool new_connected)
         connected = new_connected;
         esp_event_post(MQTT_EVENT_BASE, new_connected ? MQTT_CONNECTED : MQTT_DISCONNECTED, NULL, 0, 0);
     }
+}
+
+static void publish_node_info(void)
+{
+    char mac[6*2+5+1];
+
+    {
+        uint8_t eth_mac[6];
+        ESP_ERROR_CHECK(esp_read_mac(eth_mac, ESP_MAC_ETH));
+
+        // Espressif...
+        eth_mac[0] |= 2;
+
+        snprintf(mac, sizeof(mac), "%02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx",
+                 eth_mac[0], eth_mac[1], eth_mac[2], eth_mac[3], eth_mac[4], eth_mac[5]);
+    }
+
+
+    char info[128] = "{\"emac\":\"";
+    char *info_ptr = info + sizeof("{\"emac\":\"") - 1;
+    memcpy(info_ptr, mac, sizeof(mac) - 1);
+    info_ptr += sizeof(mac) - 1;
+    memcpy(info_ptr, "\"}", sizeof("\"}") - 1);
+    info_ptr += sizeof("\"}") - 1;
+
+    esp_mqtt_client_publish(client, info_topic, info, info_ptr - info, 0, 0);
 }
 
 static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_t event_id, void *event_data) {
@@ -48,6 +77,8 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
             ESP_LOGI(TAG, "sent subscribe successful, msg_id=%d", msg_id);
 
             esp_mqtt_client_publish(client, status_topic, "online", sizeof("online") - 1, 0, 1);
+
+            publish_node_info();
 
             break;
         case MQTT_EVENT_DISCONNECTED:
@@ -69,13 +100,12 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
             printf("DATA=%.*s\r\n", event->data_len, event->data);
             if (strlen(command_topic) == event->topic_len && !strncmp(event->topic, command_topic, event->topic_len))
             {
-                // blegh
-                event->data[event->data_len] = '\0';
-
+                char *cmd = strndup(event->data, event->data_len);
                 ESP_LOGI(TAG, "Running command '%s'", event->data);
 
                 int ret;
-                int res = esp_console_run(event->data, &ret);
+                int res = esp_console_run(cmd, &ret);
+                free(cmd);
                 char result_buf[128];
                 if (res != ESP_OK)
                 {
@@ -138,7 +168,11 @@ void mqtt_start(void)
         return;
     }
 
-    make_topic_prefix();
+    if (make_topic_prefix() != ESP_OK)
+    {
+        ESP_LOGW(TAG, "make_topic_prefix failed");
+        return;
+    }
 
     strcpy(command_topic, topic_prefix);
     strcat(command_topic, "command");
@@ -151,6 +185,9 @@ void mqtt_start(void)
 
     strcpy(status_topic, topic_prefix);
     strcat(status_topic, "status");
+
+    strcpy(info_topic, topic_prefix);
+    strcat(info_topic, "info");
 
     esp_mqtt_client_config_t mqtt_cfg = {0};
 
