@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <string.h>
 
+#include "esp_app_desc.h"
 #include "esp_console.h"
 #include "esp_crt_bundle.h"
 #include "esp_log.h"
@@ -62,8 +63,18 @@ static void publish_node_info(void)
     char *info_ptr = info + sizeof("{\"emac\":\"") - 1;
     memcpy(info_ptr, mac, sizeof(mac) - 1);
     info_ptr += sizeof(mac) - 1;
+
+    const esp_app_desc_t *app_desc = esp_app_get_description();
+    memcpy(info_ptr, "\",\"ver\":\"", sizeof("\",\"ver\":\"") - 1);
+    info_ptr += sizeof("\",\"ver\":\"") - 1;
+
+    size_t ver_len = strlen(app_desc->version);
+    memcpy(info_ptr, app_desc->version, ver_len);
+    info_ptr += ver_len;
+
     memcpy(info_ptr, "\"}", sizeof("\"}") - 1);
     info_ptr += sizeof("\"}") - 1;
+
 
     esp_mqtt_client_publish(client, info_topic, info, info_ptr - info, 0, 0);
 }
