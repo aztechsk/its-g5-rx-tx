@@ -1,5 +1,6 @@
 #include "sdkconfig.h"
 
+#include <math.h>
 #include <stdbool.h>
 #include <string.h>
 
@@ -7,11 +8,13 @@
 #include "esp_crt_bundle.h"
 #include "esp_log.h"
 #include "esp_mac.h"
+#include "esp_timer.h"
 #include "mqtt_client.h"
 
 #include "cmd_sniffer.h"
 #include "config.h"
 #include "events.h"
+#include "temperature.h"
 
 #include "mqtt.h"
 
@@ -25,7 +28,10 @@ static char command_topic[128];
 static char result_topic[128];
 static char packet_topic[128];
 static char status_topic[128];
+static char stats_topic[128];
 static char info_topic[128];
+
+static esp_timer_handle_t stats_timer_handle;
 
 static void mqtt_set_connected(bool new_connected)
 {
@@ -62,6 +68,31 @@ static void publish_node_info(void)
     esp_mqtt_client_publish(client, info_topic, info, info_ptr - info, 0, 0);
 }
 
+static void publish_stats(void *)
+{
+    char stats[128] = "{";
+    char *stats_ptr = stats + sizeof("{") - 1;
+
+    float temp_f = temperature_get();
+    if (!isnanf(temp_f))
+    {
+        char temperature[5+1+1];
+        int len = snprintf(temperature, sizeof(temperature), "%.1f", temp_f);
+        memcpy(stats_ptr, "\"temp\":", sizeof("\"temp\":") - 1);
+        stats_ptr += sizeof("\"temp\":") + len - 1;
+
+        size_t temperature_len = strlen(temperature);
+        memcpy(stats_ptr, temperature, temperature_len);
+        stats_ptr += temperature_len;
+    }
+
+    memcpy(stats_ptr, "}", sizeof("}") - 1);
+    stats_ptr += sizeof("}") - 1;
+
+    esp_mqtt_client_publish(client, stats_topic, stats, stats_ptr - stats
+                            , 0, 0);
+}
+
 static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_t event_id, void *event_data) {
     ESP_LOGD(TAG, "Event dispatched from event loop base=%s, event_id=%d", base, event_id);
 
@@ -79,6 +110,9 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
             esp_mqtt_client_publish(client, status_topic, "online", sizeof("online") - 1, 0, 1);
 
             publish_node_info();
+            publish_stats(NULL);
+
+            esp_timer_start_periodic(stats_timer_handle, 60000000);
 
             break;
         case MQTT_EVENT_DISCONNECTED:
@@ -189,6 +223,9 @@ void mqtt_start(void)
     strcpy(info_topic, topic_prefix);
     strcat(info_topic, "info");
 
+    strcpy(stats_topic, topic_prefix);
+    strcat(stats_topic, "stats");
+
     esp_mqtt_client_config_t mqtt_cfg = {0};
 
     char mqtt_uri[CONFIG_MQTT_URI_BUFFER_SIZE];
@@ -226,12 +263,15 @@ void mqtt_stop(void)
         return;
     }
 
+    esp_timer_stop_blocking(stats_timer_handle, 1000);
+
     esp_mqtt_client_stop(client);
     mqtt_set_connected(false);
 
     esp_mqtt_client_handle_t client_ = client;
     client = NULL;
     esp_mqtt_client_destroy(client_);
+
     ESP_LOGI(TAG, "MQTT stopped");
 }
 
@@ -259,4 +299,11 @@ void mqtt_handle_packet(sniffer_packet_info_t *packet)
 void mqtt_init(void)
 {
     esp_event_handler_register(APP_EVENT_BASE, ESP_EVENT_ANY_ID, app_event_handler, NULL);
+
+    esp_timer_create_args_t create_args = {
+        .callback = publish_stats,
+        .arg = NULL,
+        .name = "mqtt_stats"
+    };
+    ESP_ERROR_CHECK(esp_timer_create(&create_args, &stats_timer_handle));
 }
