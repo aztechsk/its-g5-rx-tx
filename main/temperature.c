@@ -31,6 +31,7 @@ static void temperature_read(void *)
         {
             ESP_LOGI(TAG, "temperature: %f", value);
             temperature = value;
+            return;
         }
     }
 
