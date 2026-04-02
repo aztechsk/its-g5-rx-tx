@@ -11,6 +11,7 @@
 #include "esp_log.h"
 #include "esp_ota_ops.h"
 #include "esp_system.h"
+#include "esp_timer.h"
 #include "argtable3/argtable3.h"
 
 #define OTA_TASK_STACK_SIZE 2048
@@ -33,6 +34,8 @@ static TaskHandle_t ota_task_handle;
 
 static char https_url[1024];
 static bool reboot_after_update;
+
+static esp_timer_handle_t invalidate_and_reboot_timer;
 
 esp_http_client_config_t http_client_config = {
     .url = https_url,
@@ -129,6 +132,12 @@ static int ota_cmd(int argc, char **argv)
         {
             ESP_LOGE(TAG, "esp_ota_mark_app_valid_cancel_rollback failed: %s", esp_err_to_name(res));
             return 1;
+        }
+
+        res = esp_timer_stop(invalidate_and_reboot_timer);
+        if (res != ESP_OK)
+        {
+            ESP_LOGW(TAG, "esp_timer_stop failed: %s. Maybe this app partition was already marked valid?", esp_err_to_name(res));
         }
     }
 
@@ -256,7 +265,50 @@ void register_ota_cmd(void)
     ESP_ERROR_CHECK(esp_console_cmd_register(&cmd));
 }
 
+static void invalidate_and_reboot(void *)
+{
+    esp_err_t res = esp_ota_mark_app_invalid_rollback_and_reboot();
+    if (res != ESP_OK)
+        ESP_LOGE(TAG, "esp_ota_mark_app_invalid_rollback_and_reboot failed: %s", esp_err_to_name(res));
+}
+
+static void init_invalidate_and_reboot_timer(void)
+{
+    esp_timer_create_args_t create_args = {
+        .callback = invalidate_and_reboot,
+        .arg = NULL,
+        .name = "ota_inval_reboot"
+    };
+
+    ESP_ERROR_CHECK(esp_timer_create(&create_args, &invalidate_and_reboot_timer));
+
+    const esp_partition_t* other_app = esp_ota_get_next_update_partition(NULL);
+    if (other_app == NULL)
+    {
+        ESP_LOGE(TAG, "Could not get non-running partition");
+        return;
+    }
+    esp_ota_img_states_t other_state;
+    esp_err_t res = esp_ota_get_state_partition(other_app, &other_state);
+    if (res != ESP_OK)
+    {
+        ESP_LOGE(TAG, "esp_ota_get_state_partition failed: %s", esp_err_to_name(res));
+        return;
+    }
+
+    const esp_partition_t *current_app = esp_ota_get_running_partition();
+    esp_ota_img_states_t state;
+    res = esp_ota_get_state_partition(current_app, &state);
+    if ((res != ESP_OK || state != ESP_OTA_IMG_VALID) && other_state == ESP_OTA_IMG_VALID)
+    {
+        ESP_LOGW(TAG, "Current app partition is not marked valid, will perform rollback in 30 minutes if not confirmed by then!");
+        esp_timer_start_once(invalidate_and_reboot_timer, (uint64_t)30 * 60 * 1000 * 1000);
+    }
+}
+
 void ota_init(void)
 {
     ESP_ERROR_CHECK(esp_event_handler_register(ESP_HTTPS_OTA_EVENT, ESP_EVENT_ANY_ID, ota_event_handler, NULL));
+
+    init_invalidate_and_reboot_timer();
 }
