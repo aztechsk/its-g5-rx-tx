@@ -89,11 +89,17 @@ static esp_err_t config_get_node_id(char *out, size_t *size)
         if (res != ESP_ERR_NVS_NOT_FOUND)
             ESP_LOGW(TAG, "nvs_get_str failed: %s", esp_err_to_name(res));
 
-        uint8_t base_mac[6];
-        ESP_ERROR_CHECK(esp_base_mac_addr_get(base_mac));
+        int print_res;
+        {
+            uint8_t eth_mac[6];
+            ESP_ERROR_CHECK(esp_read_mac(eth_mac, ESP_MAC_ETH));
 
-        int print_res = snprintf(out, *size, "%02hhx%02hhx%02hhx%02hhx%02hhx%02hhx",
-                                 base_mac[0], base_mac[1], base_mac[2], base_mac[3], base_mac[4], base_mac[5]);
+            // Espressif...
+            eth_mac[0] |= 2;
+
+            print_res = snprintf(out, *size, "%02hhx%02hhx%02hhx%02hhx%02hhx%02hhx",
+                                 eth_mac[0], eth_mac[1], eth_mac[2], eth_mac[3], eth_mac[4], eth_mac[5]);
+        }
 
         if (print_res > *size - 1)
         {
