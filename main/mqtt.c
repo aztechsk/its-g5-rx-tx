@@ -64,17 +64,21 @@ static void publish_node_info(void)
     memcpy(info_ptr, mac, sizeof(mac) - 1);
     info_ptr += sizeof(mac) - 1;
 
-    const esp_app_desc_t *app_desc = esp_app_get_description();
     memcpy(info_ptr, "\",\"ver\":\"", sizeof("\",\"ver\":\"") - 1);
     info_ptr += sizeof("\",\"ver\":\"") - 1;
 
+    const esp_app_desc_t *app_desc = esp_app_get_description();
     size_t ver_len = strlen(app_desc->version);
     memcpy(info_ptr, app_desc->version, ver_len);
     info_ptr += ver_len;
 
+    memcpy(info_ptr, "\",\"hwv\":\"", sizeof("\",\"hwv\":\"") - 1);
+    info_ptr += sizeof("\",\"hwv\":\"") - 1;
+    memcpy(info_ptr, CONFIG_HW_VARIANT, sizeof(CONFIG_HW_VARIANT) - 1);
+    info_ptr += sizeof(CONFIG_HW_VARIANT) - 1;
+
     memcpy(info_ptr, "\"}", sizeof("\"}") - 1);
     info_ptr += sizeof("\"}") - 1;
-
 
     esp_mqtt_client_publish(client, info_topic, info, info_ptr - info, 0, 0);
 }
