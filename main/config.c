@@ -50,19 +50,21 @@ typedef struct config_key {
 } config_key_t;
 
 static esp_err_t config_get_node_id(char *out, size_t *size);
+static esp_err_t config_get_mqtt_uri(char *out, size_t *size);
+static esp_err_t config_get_autostart_chan(uint32_t *autostart_chan);
 static esp_err_t config_get_broadcast_only(uint8_t *broadcast_only);
 static esp_err_t config_get_led_brightness(uint8_t *led_brightness);
 
 static const config_key_t config_keys[] = {
     [CONFIG_INDEX_NODEID]         = { "nodeid",           NVS_TYPE_STR, CONFIG_NODEID_BUFFER_SIZE,   config_get_node_id,        NULL },
-    [CONFIG_INDEX_MQTT_URI]       = { "mqtturi",          NVS_TYPE_STR, CONFIG_MQTT_URI_BUFFER_SIZE, NULL,                      NULL },
+    [CONFIG_INDEX_MQTT_URI]       = { "mqtturi",          NVS_TYPE_STR, CONFIG_MQTT_URI_BUFFER_SIZE, config_get_mqtt_uri,       NULL },
     [CONFIG_INDEX_ETH_IP]         = { "ethip",            NVS_TYPE_STR, CONFIG_IPV4_BUFFER_SIZE,     NULL,                      NULL },
     [CONFIG_INDEX_ETH_NETMASK]    = { "ethnm",            NVS_TYPE_STR, CONFIG_IPV4_BUFFER_SIZE,     NULL,                      NULL },
     [CONFIG_INDEX_ETH_GATEWAY]    = { "ethgw",            NVS_TYPE_STR, CONFIG_IPV4_BUFFER_SIZE,     NULL,                      NULL },
     [CONFIG_INDEX_ETH_DNS0]       = { "ethdns0",          NVS_TYPE_STR, CONFIG_IPV4_BUFFER_SIZE,     NULL,                      NULL },
     [CONFIG_INDEX_ETH_DNS1]       = { "ethdns1",          NVS_TYPE_STR, CONFIG_IPV4_BUFFER_SIZE,     NULL,                      NULL },
     [CONFIG_INDEX_ETH_DNS2]       = { "ethdns2",          NVS_TYPE_STR, CONFIG_IPV4_BUFFER_SIZE,     NULL,                      NULL },
-    [CONFIG_INDEX_AUTOSTART_CHAN] = { "autostartchan",    NVS_TYPE_U32, 0,                           NULL,                      NULL },
+    [CONFIG_INDEX_AUTOSTART_CHAN] = { "autostartchan",    NVS_TYPE_U32, 0,                           config_get_autostart_chan, NULL },
     [CONFIG_INDEX_BROADCAST_ONLY] = { "broadcastonly",    NVS_TYPE_U8,  0,                           config_get_broadcast_only, NULL },
     [CONFIG_INDEX_LED_BRIGHTNESS] = { "ledbrightness",    NVS_TYPE_U8,  0,                           config_get_led_brightness, NULL },
 };
@@ -120,6 +122,54 @@ static esp_err_t config_get_node_id(char *out, size_t *size)
 
     *size = size_copy;
 
+    return ESP_OK;
+}
+
+static esp_err_t config_get_mqtt_uri(char *out, size_t *size)
+{
+    size_t size_copy = *size;
+
+    esp_err_t res = nvs_get_str(handle, "mqtturi", out, &size_copy);
+    if (res != ESP_OK)
+    {
+        if (res != ESP_ERR_NVS_NOT_FOUND)
+            ESP_LOGW(TAG, "nvs_get_str failed: %s", esp_err_to_name(res));
+
+        int print_res = snprintf(out, *size, "%s", "mqtts://cits1.opentrafficmap.org");
+
+        if (print_res > *size - 1)
+        {
+            ESP_LOGE(TAG, "buffer too small to print");
+            return ESP_ERR_INVALID_SIZE;
+        }
+
+        if (print_res < 0)
+        {
+            ESP_LOGE(TAG, "snprintf failed");
+            return ESP_ERR_INVALID_STATE;
+        }
+
+        size_copy = print_res + 1;
+    }
+
+    *size = size_copy;
+
+    return ESP_OK;
+}
+
+static esp_err_t config_get_autostart_chan(uint32_t *autostart_chan)
+{
+    uint32_t out;
+    esp_err_t res = nvs_get_u32(handle, "autostartchan", &out);
+    if (res != ESP_OK)
+    {
+        if (res != ESP_ERR_NVS_NOT_FOUND)
+            ESP_LOGE(TAG, "nvs_get_u8 failed: %s", esp_err_to_name(res));
+
+        out = 5900;
+    }
+
+    *autostart_chan = out;
     return ESP_OK;
 }
 
