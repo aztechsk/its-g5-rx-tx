@@ -46,6 +46,7 @@ static sniffer_intf_t interf;
 static uint32_t interf_num;
 static uint32_t channel;
 static uint32_t filter;
+static bool only_capture_broadcast;
 static TaskHandle_t task;
 static QueueHandle_t work_queue;
 static SemaphoreHandle_t sem_task_over;
@@ -88,6 +89,11 @@ static void wifi_sniffer_cb(void *recv_buf, wifi_promiscuous_pkt_type_t type)
 
     /* For now, the sniffer only dumps the length of the MISC type frame */
     if (type != WIFI_PKT_MISC && !packet->rx_ctrl.rx_state) {
+        // Ignore non-broadcast frames
+        if (only_capture_broadcast &&
+                (packet_info.length < (4 + 6) || memcmp(&packet->payload[4], "\xFF\xFF\xFF\xFF\xFF\xFF", 6)))
+            return;
+
         queue_packet(packet->payload, &packet_info);
     }
 }
@@ -367,6 +373,16 @@ static int do_sniffer_cmd(int argc, char **argv)
         write_pcap = false;
     }
 
+    uint8_t broadcast_only;
+    esp_err_t ret = config_get_u8(CONFIG_INDEX_BROADCAST_ONLY, &broadcast_only);
+    if (ret != ESP_OK)
+    {
+        ESP_LOGE(TAG, "config_get_u8 failed: %s", ret);
+        return 1;
+    }
+
+    only_capture_broadcast = broadcast_only;
+
     /* start sniffer */
     sniffer_start();
     return 0;
@@ -416,11 +432,20 @@ void sniffer_autostart(void)
         return;
     }
 
+    uint8_t broadcast_only;
+    ret = config_get_u8(CONFIG_INDEX_BROADCAST_ONLY, &broadcast_only);
+    if (ret != ESP_OK)
+    {
+        ESP_LOGE(TAG, "config_get_u8 failed: %s", ret);
+        return;
+    }
+
     if (conf_channel >= 5800 && conf_channel <= 5900)
     {
         interf = SNIFFER_INTF_WLAN;
         channel = conf_channel;
         filter = WIFI_PROMIS_FILTER_MASK_ALL & ~WIFI_PROMIS_FILTER_MASK_FCSFAIL;
+        only_capture_broadcast = broadcast_only;
         sniffer_start();
     }
 }

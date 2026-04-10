@@ -50,6 +50,7 @@ typedef struct config_key {
 } config_key_t;
 
 static esp_err_t config_get_node_id(char *out, size_t *size);
+static esp_err_t config_get_broadcast_only(uint8_t *broadcast_only);
 static esp_err_t config_get_led_brightness(uint8_t *led_brightness);
 
 static const config_key_t config_keys[] = {
@@ -62,6 +63,7 @@ static const config_key_t config_keys[] = {
     [CONFIG_INDEX_ETH_DNS1]       = { "ethdns1",          NVS_TYPE_STR, CONFIG_IPV4_BUFFER_SIZE,     NULL,                      NULL },
     [CONFIG_INDEX_ETH_DNS2]       = { "ethdns2",          NVS_TYPE_STR, CONFIG_IPV4_BUFFER_SIZE,     NULL,                      NULL },
     [CONFIG_INDEX_AUTOSTART_CHAN] = { "autostartchan",    NVS_TYPE_U32, 0,                           NULL,                      NULL },
+    [CONFIG_INDEX_BROADCAST_ONLY] = { "broadcastonly",    NVS_TYPE_U8,  0,                           config_get_broadcast_only, NULL },
     [CONFIG_INDEX_LED_BRIGHTNESS] = { "ledbrightness",    NVS_TYPE_U8,  0,                           config_get_led_brightness, NULL },
 };
 #define CONFIG_KEYS_END (&config_keys[sizeof(config_keys)/sizeof(*config_keys)])
@@ -118,6 +120,22 @@ static esp_err_t config_get_node_id(char *out, size_t *size)
 
     *size = size_copy;
 
+    return ESP_OK;
+}
+
+static esp_err_t config_get_broadcast_only(uint8_t *broadcast_only)
+{
+    uint8_t out;
+    esp_err_t res = nvs_get_u8(handle, "broadcastonly", &out);
+    if (res != ESP_OK)
+    {
+        if (res != ESP_ERR_NVS_NOT_FOUND)
+            ESP_LOGE(TAG, "nvs_get_u8 failed: %s", esp_err_to_name(res));
+
+        out = 1;
+    }
+
+    *broadcast_only = !!out;
     return ESP_OK;
 }
 
