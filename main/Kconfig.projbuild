@@ -133,4 +133,7 @@ menu "Example Configuration"
         help
             GPIO number where the LED strip is connected
 
+    config ENABLE_TEMPERATURE
+        bool "Enable I2C temperature sensor"
+        default y
 endmenu

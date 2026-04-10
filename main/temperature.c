@@ -1,5 +1,7 @@
 #include "sdkconfig.h"
 
+#ifdef CONFIG_ENABLE_TEMPERATURE
+
 #include <math.h>
 #include <stdbool.h>
 
@@ -89,3 +91,5 @@ float temperature_get(void)
 {
     return temperature;
 }
+
+#endif // CONFIG_ENABLE_TEMPERATURE

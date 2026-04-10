@@ -84,6 +84,7 @@ static void publish_stats(void *)
     char stats[128] = "{";
     char *stats_ptr = stats + sizeof("{") - 1;
 
+#ifdef CONFIG_ENABLE_TEMPERATURE
     float temp_f = temperature_get();
     if (!isnanf(temp_f))
     {
@@ -96,6 +97,7 @@ static void publish_stats(void *)
         memcpy(stats_ptr, temperature, temperature_len);
         stats_ptr += temperature_len;
     }
+#endif // CONFIG_ENABLE_TEMPERATURE
 
     memcpy(stats_ptr, "}", sizeof("}") - 1);
     stats_ptr += sizeof("}") - 1;

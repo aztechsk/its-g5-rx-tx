@@ -139,7 +139,9 @@ void app_main(void)
     sniffer_init();
     ota_init();
 
+#ifdef CONFIG_ENABLE_TEMPERATURE
     temperature_init();
+#endif
 
     /* Register commands */
 #if CONFIG_ENABLE_SD
