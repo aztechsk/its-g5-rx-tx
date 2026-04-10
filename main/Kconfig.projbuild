@@ -2,6 +2,14 @@ menu "Example Configuration"
 
     orsource "$IDF_PATH/examples/common_components/env_caps/$IDF_TARGET/Kconfig.env_caps"
 
+    config HW_VARIANT
+        string "Hardware variant"
+        default "custom"
+        help
+            Any hardware with the same HW_VARIANT is assumed to be binary compatible and can receive OTA updates.
+            If you set this to "custom", this means that the hardware is not binary compatible with any other known
+            hardware, and you will not receive (potentially incompatible) OTA updates.
+
     config ENABLE_SD
         bool "Enable SD card"
         default y
