@@ -7,6 +7,7 @@
 #include "esp_timer.h"
 
 #include "led_indicator.h"
+#include "led_indicator_strips.h"
 
 #include "config.h"
 #include "ethernet.h"
@@ -245,17 +246,17 @@ void led_init(void)
         .led_strip_cfg = {
             .strip_gpio_num = CONFIG_LEDSTRIP_PIN,
             .max_leds = 5,
-            .led_pixel_format = LED_PIXEL_FORMAT_GRB,
+            .color_component_format = LED_STRIP_COLOR_COMPONENT_FMT_GRB,
             .led_model = LED_MODEL_WS2812
         },
         .led_strip_driver = LED_STRIP_RMT,
         .led_strip_rmt_cfg = {0}
     };
     led_indicator_config_t led_config = {
-        .mode = LED_STRIPS_MODE,
-        .led_indicator_strips_config = &strips_config,
+        .blink_lists = NULL,
+        .blink_list_num = 0
     };
-    led_handle = led_indicator_create(&led_config);
+    ESP_ERROR_CHECK(led_indicator_new_strips_device(&led_config, &strips_config, &led_handle));
 
     esp_timer_create_args_t create_args = {
         .callback = cits_led_timer_cb,
