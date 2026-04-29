@@ -1,5 +1,14 @@
 # ITS-G5 Receiver Firmware
 
+## Flashing a pre-compiled firmware
+
+If you can't or don't want to build the firmware yourself, you can download the latest versions of the firmware, bootloader, and partition table `.bin` files, and then flash them with a command like the following:
+```
+esptool --chip esp32c5 -p /dev/ttyACM0 -b 921600 --before=default-reset --after=hard-reset write-flash --flash-mode dio --flash-freq 80m --flash-size 8MB 0x2000 bootloader_0.1.0.bin 0x8000 partition-table_8M_0.1.0.bin 0x20000 its-g5-receiver-firmware_i5r-r1_0.3.0.bin
+```
+
+This still requires the esp-idf for the `esptool` command. Make sure to replace the device name of the serial port with the one where the ESP is connected.
+
 ## Cloning
 
 ```
@@ -24,6 +33,10 @@ CS   <-> GPIO4
 INT  <-> GPIO9
 ```
 
+The ESP32-C5-WIFI6-KIT has a 100 nF capacitor on GPIO6, which will prevent the SPI communication from working.
+This can be solved by de-soldering the zero-ohm resistor to the right of the 5V pin (named R39 in [the schematics](https://files.waveshare.com/wiki/ESP32-C5-WIFI6-KIT-NXRX/ESP32-C5-WIFI6-KIT-NXRX-Schematic.pdf)).
+Alternatively, you can edit the sdkconfig to use a different pin.
+
 Copy the correct sdkconfig file over the default one:
 ```
 # For W5500
@@ -32,7 +45,7 @@ cp sdkconfig.proto-w5500 sdkconfig
 cp sdkconfig.proto-enc28j60 sdkconfig
 ```
 
-If you make any incompatible changes to the hardware/sdkconfig, make sure to set `HW_VARIANT` to `custom` in the sdkconfig,
+If you make any changes to the hardware/sdkconfig, make sure to set `HW_VARIANT` to `custom` in the sdkconfig,
 otherwise you may receive incompatible OTA updates if you connect to the official MQTT server.
 
 ## Building
