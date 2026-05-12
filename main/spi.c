@@ -34,5 +34,7 @@ void initialize_spi(void)
     int ret = spi_bus_initialize(1, &bus_cfg, SPI_DMA_CH_AUTO);
     if (ret != ESP_OK)
         ESP_LOGE(TAG, "Failed to initialize bus.");
+#else
+    ESP_LOGI(TAG, "SPI bus not initialized (no SD/Ethernet configured)");
 #endif
 }
