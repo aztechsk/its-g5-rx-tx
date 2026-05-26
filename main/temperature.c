@@ -64,6 +64,11 @@ void temperature_init(void)
         return;
     }
 
+    initialized = true;
+
+    // perform initial temperature read
+    temperature_read(NULL);
+
     esp_timer_create_args_t create_args = {
         .callback = temperature_read,
         .arg = NULL,
@@ -83,8 +88,6 @@ void temperature_init(void)
         ESP_LOGW(TAG, "esp_timer_create failed: %s", esp_err_to_name(res));
         return;
     }
-
-    initialized = true;
 }
 
 float temperature_get(void)
