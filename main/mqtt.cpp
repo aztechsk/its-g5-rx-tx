@@ -15,6 +15,7 @@
 
 #include "cmd_sniffer.h"
 #include "config.h"
+#include "ethernet.h"
 #include "events.h"
 #include "temperature.h"
 
@@ -52,10 +53,7 @@ static void publish_node_info(void)
     char mac[6*2+5+1];
     {
         uint8_t eth_mac[6];
-        ESP_ERROR_CHECK(esp_read_mac(eth_mac, ESP_MAC_ETH));
-
-        // Espressif...
-        eth_mac[0] |= 2;
+        ethernet_get_mac(eth_mac);
 
         snprintf(mac, sizeof(mac), "%02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx",
                  eth_mac[0], eth_mac[1], eth_mac[2], eth_mac[3], eth_mac[4], eth_mac[5]);

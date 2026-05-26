@@ -13,6 +13,7 @@
 #include "nvs_flash.h"
 #include "argtable3/argtable3.h"
 
+#include "ethernet.h"
 #include "events.h"
 
 #include "config.h"
@@ -98,10 +99,7 @@ static esp_err_t config_get_node_id(char *out, size_t *size)
         int print_res;
         {
             uint8_t eth_mac[6];
-            ESP_ERROR_CHECK(esp_read_mac(eth_mac, ESP_MAC_ETH));
-
-            // Espressif...
-            eth_mac[0] |= 2;
+            ethernet_get_mac(eth_mac);
 
             print_res = snprintf(out, *size, "%02hhx%02hhx%02hhx%02hhx%02hhx%02hhx",
                                  eth_mac[0], eth_mac[1], eth_mac[2], eth_mac[3], eth_mac[4], eth_mac[5]);

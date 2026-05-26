@@ -5,6 +5,7 @@
 #include "esp_eth.h"
 #include "esp_event.h"
 #include "esp_log.h"
+#include "esp_mac.h"
 #include "esp_netif.h"
 #include "ethernet_init.h"
 #include "nvs.h"
@@ -313,4 +314,12 @@ eth_speed_t ethernet_get_mgmt_if_link_speed(void)
     }
 
     return speed;
+}
+
+void ethernet_get_mac(uint8_t mac[6])
+{
+    ESP_ERROR_CHECK(esp_read_mac(mac, ESP_MAC_ETH));
+
+    // Espressif...
+    mac[0] |= 2;
 }
