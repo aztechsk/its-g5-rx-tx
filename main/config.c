@@ -13,6 +13,8 @@
 #include "nvs_flash.h"
 #include "argtable3/argtable3.h"
 
+#include "events.h"
+
 #include "config.h"
 
 static const char TAG[] = "CONFIG";
@@ -231,10 +233,20 @@ esp_err_t config_set_u8(config_index_t index, uint8_t value)
         return ESP_ERR_INVALID_ARG;
     }
 
+    esp_err_t result;
     if (key->setter)
-        return ((config_u8_setter)key->setter)(value);
+        result = ((config_u8_setter)key->setter)(value);
     else
-        return nvs_set_u8(handle, key->name, value);
+        result = nvs_set_u8(handle, key->name, value);
+
+    if (result == ESP_OK)
+    {
+        esp_err_t post_result = esp_event_post(CONFIG_EVENT_BASE, (int32_t)index, NULL, 0, 0);
+        if (post_result != ESP_OK)
+            ESP_LOGE(TAG, "esp_event_post failed: %s", esp_err_to_name(post_result));
+    }
+
+    return result;
 }
 
 esp_err_t config_get_u16(config_index_t index, uint16_t *out)
@@ -263,10 +275,20 @@ esp_err_t config_set_u16(config_index_t index, uint16_t value)
         return ESP_ERR_INVALID_ARG;
     }
 
+    esp_err_t result;
     if (key->setter)
-        return ((config_u16_setter)key->setter)(value);
+        result = ((config_u16_setter)key->setter)(value);
     else
-        return nvs_set_u16(handle, key->name, value);
+        result = nvs_set_u16(handle, key->name, value);
+
+    if (result == ESP_OK)
+    {
+        esp_err_t post_result = esp_event_post(CONFIG_EVENT_BASE, (int32_t)index, NULL, 0, 0);
+        if (post_result != ESP_OK)
+            ESP_LOGE(TAG, "esp_event_post failed: %s", esp_err_to_name(post_result));
+    }
+
+    return result;
 }
 
 esp_err_t config_get_u32(config_index_t index, uint32_t *out)
@@ -295,10 +317,20 @@ esp_err_t config_set_u32(config_index_t index, uint32_t value)
         return ESP_ERR_INVALID_ARG;
     }
 
+    esp_err_t result;
     if (key->setter)
-        return ((config_u32_setter)key->setter)(value);
+        result = ((config_u32_setter)key->setter)(value);
     else
-        return nvs_set_u32(handle, key->name, value);
+        result = nvs_set_u32(handle, key->name, value);
+
+    if (result == ESP_OK)
+    {
+        esp_err_t post_result = esp_event_post(CONFIG_EVENT_BASE, (int32_t)index, NULL, 0, 0);
+        if (post_result != ESP_OK)
+            ESP_LOGE(TAG, "esp_event_post failed: %s", esp_err_to_name(post_result));
+    }
+
+    return result;
 }
 
 esp_err_t config_get_u64(config_index_t index, uint64_t *out)
@@ -327,10 +359,20 @@ esp_err_t config_set_u64(config_index_t index, uint64_t value)
         return ESP_ERR_INVALID_ARG;
     }
 
+    esp_err_t result;
     if (key->setter)
-        return ((config_u64_setter)key->setter)(value);
+        result = ((config_u64_setter)key->setter)(value);
     else
-        return nvs_set_u64(handle, key->name, value);
+        result = nvs_set_u64(handle, key->name, value);
+
+    if (result == ESP_OK)
+    {
+        esp_err_t post_result = esp_event_post(CONFIG_EVENT_BASE, (int32_t)index, NULL, 0, 0);
+        if (post_result != ESP_OK)
+            ESP_LOGE(TAG, "esp_event_post failed: %s", esp_err_to_name(post_result));
+    }
+
+    return result;
 }
 
 esp_err_t config_get_i8(config_index_t index, int8_t *out)
@@ -359,10 +401,20 @@ esp_err_t config_set_i8(config_index_t index, int8_t value)
         return ESP_ERR_INVALID_ARG;
     }
 
+    esp_err_t result;
     if (key->setter)
-        return ((config_i8_setter)key->setter)(value);
+        result = ((config_i8_setter)key->setter)(value);
     else
-        return nvs_set_i8(handle, key->name, value);
+        result = nvs_set_i8(handle, key->name, value);
+
+    if (result == ESP_OK)
+    {
+        esp_err_t post_result = esp_event_post(CONFIG_EVENT_BASE, (int32_t)index, NULL, 0, 0);
+        if (post_result != ESP_OK)
+            ESP_LOGE(TAG, "esp_event_post failed: %s", esp_err_to_name(post_result));
+    }
+
+    return result;
 }
 
 esp_err_t config_get_i16(config_index_t index, int16_t *out)
@@ -391,10 +443,20 @@ esp_err_t config_set_i16(config_index_t index, int16_t value)
         return ESP_ERR_INVALID_ARG;
     }
 
+    esp_err_t result;
     if (key->setter)
-        return ((config_i16_setter)key->setter)(value);
+        result = ((config_i16_setter)key->setter)(value);
     else
-        return nvs_set_i16(handle, key->name, value);
+        result = nvs_set_i16(handle, key->name, value);
+
+    if (result == ESP_OK)
+    {
+        esp_err_t post_result = esp_event_post(CONFIG_EVENT_BASE, (int32_t)index, NULL, 0, 0);
+        if (post_result != ESP_OK)
+            ESP_LOGE(TAG, "esp_event_post failed: %s", esp_err_to_name(post_result));
+    }
+
+    return result;
 }
 
 esp_err_t config_get_i32(config_index_t index, int32_t *out)
@@ -423,10 +485,20 @@ esp_err_t config_set_i32(config_index_t index, int32_t value)
         return ESP_ERR_INVALID_ARG;
     }
 
+    esp_err_t result;
     if (key->setter)
-        return ((config_i32_setter)key->setter)(value);
+        result = ((config_i32_setter)key->setter)(value);
     else
-        return nvs_set_i32(handle, key->name, value);
+        result = nvs_set_i32(handle, key->name, value);
+
+    if (result == ESP_OK)
+    {
+        esp_err_t post_result = esp_event_post(CONFIG_EVENT_BASE, (int32_t)index, NULL, 0, 0);
+        if (post_result != ESP_OK)
+            ESP_LOGE(TAG, "esp_event_post failed: %s", esp_err_to_name(post_result));
+    }
+
+    return result;
 }
 
 esp_err_t config_get_i64(config_index_t index, int64_t *out)
@@ -455,10 +527,20 @@ esp_err_t config_set_i64(config_index_t index, int64_t value)
         return ESP_ERR_INVALID_ARG;
     }
 
+    esp_err_t result;
     if (key->setter)
-        return ((config_i64_setter)key->setter)(value);
+        result = ((config_i64_setter)key->setter)(value);
     else
-        return nvs_set_i64(handle, key->name, value);
+        result = nvs_set_i64(handle, key->name, value);
+
+    if (result == ESP_OK)
+    {
+        esp_err_t post_result = esp_event_post(CONFIG_EVENT_BASE, (int32_t)index, NULL, 0, 0);
+        if (post_result != ESP_OK)
+            ESP_LOGE(TAG, "esp_event_post failed: %s", esp_err_to_name(post_result));
+    }
+
+    return result;
 }
 
 esp_err_t config_get_str(config_index_t index, char *out, size_t *size)
@@ -490,10 +572,65 @@ esp_err_t config_set_str(config_index_t index, const char *value)
     if (strlen(value) >= key->buffer_size)
         return ESP_ERR_INVALID_SIZE;
 
+    esp_err_t result;
     if (key->setter)
-        return ((config_str_setter)key->setter)(value);
+        result = ((config_str_setter)key->setter)(value);
     else
-        return nvs_set_str(handle, key->name, value);
+        result = nvs_set_str(handle, key->name, value);
+
+    if (result == ESP_OK)
+    {
+        esp_err_t post_result = esp_event_post(CONFIG_EVENT_BASE, (int32_t)index, NULL, 0, 0);
+        if (post_result != ESP_OK)
+            ESP_LOGE(TAG, "esp_event_post failed: %s", esp_err_to_name(post_result));
+    }
+
+    return result;
+}
+
+esp_err_t config_get_blob(config_index_t index, uint8_t *out, size_t *size)
+{
+    const config_key_t *key = &config_keys[index];
+
+    if (key->type != NVS_TYPE_STR)
+    {
+        ESP_LOGE(TAG, "Attempt to get key %s with wrong type str", key->name);
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    if (key->getter)
+        return ((config_blob_getter)key->getter)(out, size);
+    else
+        return nvs_get_blob(handle, key->name, out, size);
+}
+
+esp_err_t config_set_blob(config_index_t index, const uint8_t *val, size_t size)
+{
+    const config_key_t *key = &config_keys[index];
+
+    if (key->type != NVS_TYPE_BLOB)
+    {
+        ESP_LOGE(TAG, "Attempt to set key %s with wrong type blob", key->name);
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    if (size > key->buffer_size)
+        return ESP_ERR_INVALID_SIZE;
+
+    esp_err_t result;
+    if (key->setter)
+        result = ((config_blob_setter)key->setter)(val, size);
+    else
+        result = nvs_set_blob(handle, key->name, val, size);
+
+    if (result == ESP_OK)
+    {
+        esp_err_t post_result = esp_event_post(CONFIG_EVENT_BASE, (int32_t)index, NULL, 0, 0);
+        if (post_result != ESP_OK)
+            ESP_LOGE(TAG, "esp_event_post failed: %s", esp_err_to_name(post_result));
+    }
+
+    return result;
 }
 
 static const config_key_t *config_key_find(const char *name)
@@ -510,7 +647,6 @@ static const config_key_t *config_key_find(const char *name)
 }
 
 static struct {
-    arg_lit_t *raw;
     arg_str_t *key;
     arg_str_t *value;
     arg_end_t *end;
@@ -533,6 +669,8 @@ static int cmd_config_set(int argc, char **argv)
         ESP_LOGE(TAG, "No such config key: %s", key_str);
         return 1;
     }
+
+    config_index_t index = (config_index_t)(key - config_keys);
 
     esp_err_t res;
     switch (key->type)
@@ -558,43 +696,21 @@ static int cmd_config_set(int argc, char **argv)
                 return 1;
             }
 
-            if (key->setter == NULL || config_set_args.raw->count)
-            {
-                switch (key->type) {
-                case NVS_TYPE_U8:
-                    res = nvs_set_u8(handle, key_str, (uint8_t)parsed);
-                    break;
-                case NVS_TYPE_U16:
-                    res = nvs_set_u16(handle, key_str, (uint16_t)parsed);
-                    break;
-                case NVS_TYPE_U32:
-                    res = nvs_set_u32(handle, key_str, (uint32_t)parsed);
-                    break;
-                case NVS_TYPE_U64:
-                    res = nvs_set_u64(handle, key_str, parsed);
-                    break;
-                default:
-                    __builtin_unreachable();
-                }
-            }
-            else
-            {
-                switch (key->type) {
-                case NVS_TYPE_U8:
-                    res = ((config_u8_setter)key->setter)((uint8_t)parsed);
-                    break;
-                case NVS_TYPE_U16:
-                    res = ((config_u16_setter)key->setter)((uint16_t)parsed);
-                    break;
-                case NVS_TYPE_U32:
-                    res = ((config_u32_setter)key->setter)((uint32_t)parsed);
-                    break;
-                case NVS_TYPE_U64:
-                    res = ((config_u64_setter)key->setter)(parsed);
-                    break;
-                default:
-                    __builtin_unreachable();
-                }
+            switch (key->type) {
+            case NVS_TYPE_U8:
+                res = config_set_u8(index, (uint8_t)parsed);
+                break;
+            case NVS_TYPE_U16:
+                res = config_set_u16(index, (uint16_t)parsed);
+                break;
+            case NVS_TYPE_U32:
+                res = config_set_u32(index, (uint32_t)parsed);
+                break;
+            case NVS_TYPE_U64:
+                res = config_set_u64(index, parsed);
+                break;
+            default:
+                __builtin_unreachable();
             }
         }
 
@@ -620,43 +736,21 @@ static int cmd_config_set(int argc, char **argv)
                 return 1;
             }
 
-            if (key->setter == NULL || config_set_args.raw->count)
-            {
-                switch (key->type) {
-                case NVS_TYPE_U8:
-                    res = nvs_set_i8(handle, key_str, (int8_t)parsed);
-                    break;
-                case NVS_TYPE_U16:
-                    res = nvs_set_i16(handle, key_str, (int16_t)parsed);
-                    break;
-                case NVS_TYPE_U32:
-                    res = nvs_set_i32(handle, key_str, (int32_t)parsed);
-                    break;
-                case NVS_TYPE_U64:
-                    res = nvs_set_i64(handle, key_str, parsed);
-                    break;
-                default:
-                    __builtin_unreachable();
-                }
-            }
-            else
-            {
-                switch (key->type) {
-                case NVS_TYPE_U8:
-                    res = ((config_i8_setter)key->setter)((int8_t)parsed);
-                    break;
-                case NVS_TYPE_U16:
-                    res = ((config_i16_setter)key->setter)((int16_t)parsed);
-                    break;
-                case NVS_TYPE_U32:
-                    res = ((config_i32_setter)key->setter)((int32_t)parsed);
-                    break;
-                case NVS_TYPE_U64:
-                    res = ((config_i64_setter)key->setter)(parsed);
-                    break;
-                default:
-                    __builtin_unreachable();
-                }
+            switch (key->type) {
+            case NVS_TYPE_U8:
+                res = config_set_i8(index, (int8_t)parsed);
+                break;
+            case NVS_TYPE_U16:
+                res = config_set_i16(index, (int16_t)parsed);
+                break;
+            case NVS_TYPE_U32:
+                res = config_set_i32(index, (int32_t)parsed);
+                break;
+            case NVS_TYPE_U64:
+                res = config_set_i64(index, parsed);
+                break;
+            default:
+                __builtin_unreachable();
             }
         }
 
@@ -668,10 +762,7 @@ static int cmd_config_set(int argc, char **argv)
             return 1;
         }
 
-        if (key->setter == NULL || config_set_args.raw->count)
-            res = nvs_set_str(handle, key_str, value_str);
-        else
-            res = ((config_str_setter)key->setter)(value_str);
+        res = config_set_str(index, value_str);
         break;
     case NVS_TYPE_BLOB:
         {
@@ -692,10 +783,7 @@ static int cmd_config_set(int argc, char **argv)
                 return 1;
             }
 
-            if (key->setter == NULL || config_set_args.raw->count)
-                res = nvs_set_blob(handle, key_str, buf, olen);
-            else
-                res = ((config_blob_setter)key->setter)(buf, olen);
+            res = config_set_blob(index, buf, olen);
             free(buf);
         }
         break;
@@ -716,7 +804,6 @@ static int cmd_config_set(int argc, char **argv)
 
 void register_config_set(void)
 {
-    config_set_args.raw = arg_lit0("R", NULL, "skip setter functions, directly write NVS");
     config_set_args.key = arg_str1(NULL, NULL, "key", "the key");
     config_set_args.value = arg_str1(NULL, NULL, "value", "the value to set");
     config_set_args.end = arg_end(1);
@@ -732,7 +819,6 @@ void register_config_set(void)
 }
 
 static struct {
-    arg_lit_t *raw;
     arg_str_t *key;
     arg_end_t *end;
 } config_get_args;
@@ -754,6 +840,8 @@ static int cmd_config_get(int argc, char **argv)
         return 1;
     }
 
+    config_index_t index = (config_index_t)(key - config_keys);
+
     esp_err_t res;
 
     switch (key->type)
@@ -765,43 +853,21 @@ static int cmd_config_get(int argc, char **argv)
         {
             uint64_t value = 0;
 
-            if (key->getter == NULL || config_get_args.raw->count)
-            {
-                switch (key->type) {
-                case NVS_TYPE_U8:
-                    res = nvs_get_u8(handle, key_str, (uint8_t *)&value);
-                    break;
-                case NVS_TYPE_U16:
-                    res = nvs_get_u16(handle, key_str, (uint16_t *)&value);
-                    break;
-                case NVS_TYPE_U32:
-                    res = nvs_get_u32(handle, key_str, (uint32_t *)&value);
-                    break;
-                case NVS_TYPE_U64:
-                    res = nvs_get_u64(handle, key_str, &value);
-                    break;
-                default:
-                    __builtin_unreachable();
-                }
-            }
-            else
-            {
-                switch (key->type) {
-                case NVS_TYPE_U8:
-                    res = ((config_u8_getter)key->getter)((uint8_t *)&value);
-                    break;
-                case NVS_TYPE_U16:
-                    res = ((config_u16_getter)key->getter)((uint16_t *)&value);
-                    break;
-                case NVS_TYPE_U32:
-                    res = ((config_u32_getter)key->getter)((uint32_t *)&value);
-                    break;
-                case NVS_TYPE_U64:
-                    res = ((config_u64_getter)key->getter)(&value);
-                    break;
-                default:
-                    __builtin_unreachable();
-                }
+            switch (key->type) {
+            case NVS_TYPE_U8:
+                res = config_get_u8(index, (uint8_t *)&value);
+                break;
+            case NVS_TYPE_U16:
+                res = config_get_u16(index, (uint16_t *)&value);
+                break;
+            case NVS_TYPE_U32:
+                res = config_get_u32(index, (uint32_t *)&value);
+                break;
+            case NVS_TYPE_U64:
+                res = config_get_u64(index, &value);
+                break;
+            default:
+                __builtin_unreachable();
             }
 
             if (res == ESP_OK)
@@ -816,49 +882,24 @@ static int cmd_config_get(int argc, char **argv)
         {
             int64_t value = 0;
 
-            if (key->getter == NULL || config_get_args.raw->count)
-            {
-                switch (key->type) {
-                case NVS_TYPE_I8:
-                    res = nvs_get_i8(handle, key_str, (int8_t *)&value);
-                    value = (int64_t)(int8_t)value;
-                    break;
-                case NVS_TYPE_I16:
-                    res = nvs_get_i16(handle, key_str, (int16_t *)&value);
-                    value = (int64_t)(int16_t)value;
-                    break;
-                case NVS_TYPE_I32:
-                    res = nvs_get_i32(handle, key_str, (int32_t *)&value);
-                    value = (int64_t)(int32_t)value;
-                    break;
-                case NVS_TYPE_I64:
-                    res = nvs_get_i64(handle, key_str, &value);
-                    break;
-                default:
-                    __builtin_unreachable();
-                }
-            }
-            else
-            {
-                switch (key->type) {
-                case NVS_TYPE_I8:
-                    res = ((config_i8_getter)key->getter)((int8_t *)&value);
-                    value = (int64_t)(int8_t)value;
-                    break;
-                case NVS_TYPE_I16:
-                    res = ((config_i16_getter)key->getter)((int16_t *)&value);
-                    value = (int64_t)(int16_t)value;
-                    break;
-                case NVS_TYPE_I32:
-                    res = ((config_i32_getter)key->getter)((int32_t *)&value);
-                    value = (int64_t)(int32_t)value;
-                    break;
-                case NVS_TYPE_I64:
-                    res = ((config_i64_getter)key->getter)(&value);
-                    break;
-                default:
-                    __builtin_unreachable();
-                }
+            switch (key->type) {
+            case NVS_TYPE_I8:
+                res = config_get_i8(index, (int8_t *)&value);
+                value = (int64_t)(int8_t)value;
+                break;
+            case NVS_TYPE_I16:
+                res = config_get_i16(index, (int16_t *)&value);
+                value = (int64_t)(int16_t)value;
+                break;
+            case NVS_TYPE_I32:
+                res = config_get_i32(index, (int32_t *)&value);
+                value = (int64_t)(int32_t)value;
+                break;
+            case NVS_TYPE_I64:
+                res = config_get_i64(index, &value);
+                break;
+            default:
+                __builtin_unreachable();
             }
 
             if (res == ESP_OK)
@@ -870,10 +911,7 @@ static int cmd_config_get(int argc, char **argv)
         char *value = malloc(key->buffer_size);
         size_t size = key->buffer_size;
 
-        if (key->getter == NULL || config_get_args.raw->count)
-            res = nvs_get_str(handle, key_str, value, &size);
-        else
-            res = ((config_str_getter)key->getter)(value, &size);
+        res = config_get_str(index, value, &size);
 
         if (res == ESP_OK)
             printf("%s\n", value);
@@ -885,10 +923,7 @@ static int cmd_config_get(int argc, char **argv)
             unsigned char *buf = malloc(key->buffer_size);
             size_t actual_size;
 
-            if (key->getter == NULL || config_get_args.raw->count)
-                res = nvs_get_blob(handle, key_str, buf, &actual_size);
-            else
-                res = ((config_blob_getter)key->getter)(buf, &actual_size);
+            res = config_get_blob(index, buf, &actual_size);
 
             if (res != ESP_OK)
             {
@@ -930,7 +965,6 @@ static int cmd_config_get(int argc, char **argv)
 
 void register_config_get(void)
 {
-    config_get_args.raw = arg_lit0("R", NULL, "skip getter functions, directly read NVS");
     config_get_args.key = arg_str1(NULL, NULL, "key", "the key");
     config_get_args.end = arg_end(1);
 

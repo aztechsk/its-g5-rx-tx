@@ -42,6 +42,7 @@ esp_err_t config_set_i64(config_index_t index, int64_t value);
 esp_err_t config_get_str(config_index_t index, char *out, size_t *size);
 esp_err_t config_set_str(config_index_t index, const char *value);
 
-
+esp_err_t config_get_blob(config_index_t index, uint8_t *out, size_t *size);
+esp_err_t config_set_blob(config_index_t index, const uint8_t *val, size_t size);
 
 void config_register_commands(void);
