@@ -73,14 +73,16 @@ static void publish_node_info(void)
 static void publish_stats_timer_cb(void *)
 {
     char stats[128];
-
     JsonDocument doc;
+
+#ifdef CONFIG_ENABLE_TEMPERATURE
     float temp_f = temperature_get();
     if (!isnanf(temp_f))
     {
         temp_f = roundf(temp_f * 10.f) / 10.f;
         doc["temp"] = temp_f;
     }
+#endif
 
     uint64_t seconds_since_boot = esp_timer_get_time() / 1000000ull;
     doc["rbt"] = seconds_since_boot;
