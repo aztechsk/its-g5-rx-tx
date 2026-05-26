@@ -2,6 +2,10 @@
 
 #include "esp_event.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 ESP_EVENT_DECLARE_BASE(APP_EVENT_BASE);
 
 enum AppEvent
@@ -32,3 +36,7 @@ enum MQTTEvent {
     MQTT_CONNECTED,
     MQTT_DISCONNECTED
 };
+
+#ifdef __cplusplus
+}
+#endif

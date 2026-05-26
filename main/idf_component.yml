@@ -1,4 +1,6 @@
 dependencies:
+  bblanchon/arduinojson:
+    version: "^7.4.3"
   esp-idf-lib/lm75:
     version: "~1.0.7"
   espressif/ethernet_init:

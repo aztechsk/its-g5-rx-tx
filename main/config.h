@@ -2,6 +2,10 @@
 
 #include "esp_err.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define CONFIG_NODEID_BUFFER_SIZE 64
 #define CONFIG_MQTT_URI_BUFFER_SIZE 256
 #define CONFIG_IPV4_BUFFER_SIZE 16
@@ -46,3 +50,7 @@ esp_err_t config_get_blob(config_index_t index, uint8_t *out, size_t *size);
 esp_err_t config_set_blob(config_index_t index, const uint8_t *val, size_t size);
 
 void config_register_commands(void);
+
+#ifdef __cplusplus
+}
+#endif

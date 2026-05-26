@@ -1,8 +1,9 @@
 #include "sdkconfig.h"
 
-#include <math.h>
-#include <stdbool.h>
-#include <string.h>
+#include <cmath>
+#include <cstring>
+
+#include "ArduinoJson.h"
 
 #include "esp_app_desc.h"
 #include "esp_console.h"
@@ -45,8 +46,10 @@ static void mqtt_set_connected(bool new_connected)
 
 static void publish_node_info(void)
 {
-    char mac[6*2+5+1];
+    char info[128];
+    JsonDocument doc;
 
+    char mac[6*2+5+1];
     {
         uint8_t eth_mac[6];
         ESP_ERROR_CHECK(esp_read_mac(eth_mac, ESP_MAC_ETH));
@@ -58,62 +61,40 @@ static void publish_node_info(void)
                  eth_mac[0], eth_mac[1], eth_mac[2], eth_mac[3], eth_mac[4], eth_mac[5]);
     }
 
-
-    char info[128] = "{\"emac\":\"";
-    char *info_ptr = info + sizeof("{\"emac\":\"") - 1;
-    memcpy(info_ptr, mac, sizeof(mac) - 1);
-    info_ptr += sizeof(mac) - 1;
-
-    memcpy(info_ptr, "\",\"ver\":\"", sizeof("\",\"ver\":\"") - 1);
-    info_ptr += sizeof("\",\"ver\":\"") - 1;
+    doc["emac"] = mac;
 
     const esp_app_desc_t *app_desc = esp_app_get_description();
-    size_t ver_len = strlen(app_desc->version);
-    memcpy(info_ptr, app_desc->version, ver_len);
-    info_ptr += ver_len;
+    doc["ver"] = app_desc->version;
 
-    memcpy(info_ptr, "\",\"hwv\":\"", sizeof("\",\"hwv\":\"") - 1);
-    info_ptr += sizeof("\",\"hwv\":\"") - 1;
-    memcpy(info_ptr, CONFIG_HW_VARIANT, sizeof(CONFIG_HW_VARIANT) - 1);
-    info_ptr += sizeof(CONFIG_HW_VARIANT) - 1;
+    doc["hwv"] = CONFIG_HW_VARIANT;
 
-    memcpy(info_ptr, "\"}", sizeof("\"}") - 1);
-    info_ptr += sizeof("\"}") - 1;
-
-    esp_mqtt_client_publish(client, info_topic, info, info_ptr - info, 0, 0);
+    size_t written = serializeJson(doc, info);
+    esp_mqtt_client_publish(client, info_topic, info, written, 0, 0);
 }
 
-static void publish_stats(void *)
+static void publish_stats_timer_cb(void *)
 {
-    char stats[128] = "{";
-    char *stats_ptr = stats + sizeof("{") - 1;
+    char stats[128];
 
-#ifdef CONFIG_ENABLE_TEMPERATURE
+    JsonDocument doc;
     float temp_f = temperature_get();
     if (!isnanf(temp_f))
     {
-        char temperature[5+1+1];
-        int len = snprintf(temperature, sizeof(temperature), "%.1f", temp_f);
-        memcpy(stats_ptr, "\"temp\":", sizeof("\"temp\":") - 1);
-        stats_ptr += sizeof("\"temp\":") + len - 1;
-
-        size_t temperature_len = strlen(temperature);
-        memcpy(stats_ptr, temperature, temperature_len);
-        stats_ptr += temperature_len;
+        temp_f = roundf(temp_f * 10.f) / 10.f;
+        doc["temp"] = temp_f;
     }
-#endif // CONFIG_ENABLE_TEMPERATURE
 
-    memcpy(stats_ptr, "}", sizeof("}") - 1);
-    stats_ptr += sizeof("}") - 1;
+    uint64_t seconds_since_boot = esp_timer_get_time() / 1000000ull;
+    doc["rbt"] = seconds_since_boot;
 
-    esp_mqtt_client_publish(client, stats_topic, stats, stats_ptr - stats
-                            , 0, 0);
+    size_t written = serializeJson(doc, stats);
+    esp_mqtt_client_publish(client, stats_topic, stats, written, 0, 0);
 }
 
 static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_t event_id, void *event_data) {
     ESP_LOGD(TAG, "Event dispatched from event loop base=%s, event_id=%d", base, event_id);
 
-    esp_mqtt_event_handle_t event = event_data;
+    esp_mqtt_event_handle_t event = static_cast<esp_mqtt_event_handle_t>(event_data);
     esp_mqtt_client_handle_t client = event->client;
     int msg_id;
     // your_context_t *context = event->context;
@@ -127,7 +108,7 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
             esp_mqtt_client_publish(client, status_topic, "online", sizeof("online") - 1, 0, 1);
 
             publish_node_info();
-            publish_stats(NULL);
+            publish_stats_timer_cb(NULL);
 
             esp_timer_start_periodic(stats_timer_handle, 60000000);
 
@@ -243,7 +224,7 @@ void mqtt_start(void)
     strcpy(stats_topic, topic_prefix);
     strcat(stats_topic, "stats");
 
-    esp_mqtt_client_config_t mqtt_cfg = {0};
+    esp_mqtt_client_config_t mqtt_cfg{};
 
     char mqtt_uri[CONFIG_MQTT_URI_BUFFER_SIZE];
     size_t size = sizeof(mqtt_uri);
@@ -256,16 +237,16 @@ void mqtt_start(void)
 
     mqtt_cfg.broker.address.uri = mqtt_uri;
     mqtt_cfg.broker.verification.crt_bundle_attach = esp_crt_bundle_attach;
-    struct last_will_t last_will = {
+    mqtt_cfg.session.last_will = {
         .topic = status_topic,
         .msg = "offline",
         .msg_len = sizeof("offline") - 1,
+        .qos = 0,
         .retain = 1
     };
-    mqtt_cfg.session.last_will = last_will;
 
     esp_mqtt_client_handle_t client_ = esp_mqtt_client_init(&mqtt_cfg);
-    esp_mqtt_client_register_event(client_, ESP_EVENT_ANY_ID, mqtt_event_handler, client_);
+    esp_mqtt_client_register_event(client_, static_cast<esp_mqtt_event_id_t>(ESP_EVENT_ANY_ID), mqtt_event_handler, client_);
     esp_mqtt_client_start(client_);
 
     client = client_;
@@ -305,22 +286,24 @@ static void app_event_handler(void *handler_args, esp_event_base_t base, int32_t
     }
 }
 
-void mqtt_handle_packet(sniffer_packet_info_t *packet)
+extern "C" void mqtt_handle_packet(sniffer_packet_info_t *packet)
 {
     if (!client || !connected)
         return;
 
-    esp_mqtt_client_publish(client, packet_topic, (const char *)packet->payload, packet->length, 0, 0);
+    esp_mqtt_client_publish(client, packet_topic, static_cast<const char *>(packet->payload), packet->length, 0, 0);
 }
 
-void mqtt_init(void)
+extern "C" void mqtt_init(void)
 {
     esp_event_handler_register(APP_EVENT_BASE, ESP_EVENT_ANY_ID, app_event_handler, NULL);
 
     esp_timer_create_args_t create_args = {
-        .callback = publish_stats,
+        .callback = publish_stats_timer_cb,
         .arg = NULL,
-        .name = "mqtt_stats"
+        .dispatch_method = ESP_TIMER_TASK,
+        .name = "mqtt_stats",
+        .skip_unhandled_events = true
     };
     ESP_ERROR_CHECK(esp_timer_create(&create_args, &stats_timer_handle));
 }
