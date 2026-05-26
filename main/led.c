@@ -48,7 +48,9 @@ static bool eth_led_blink_state;
 
 static uint8_t led_brightness;
 
-static void set_led_with_brightness(led_indicator_handle_t handle, uint32_t irgb)
+static bool boot_finished;
+
+static void set_led_with_brightness_during_boot(led_indicator_handle_t handle, uint32_t irgb)
 {
     uint8_t i = GET_INDEX(irgb);
     uint8_t r = GET_RED(irgb);
@@ -60,6 +62,14 @@ static void set_led_with_brightness(led_indicator_handle_t handle, uint32_t irgb
     b = ((uint32_t)b) * ((uint32_t)led_brightness) / 255u;
 
     led_indicator_set_rgb(handle, SET_IRGB(i, r, g, b));
+}
+
+static void set_led_with_brightness(led_indicator_handle_t handle, uint32_t irgb)
+{
+    if (!boot_finished)
+        return;
+
+    set_led_with_brightness_during_boot(handle, irgb);
 }
 
 static void set_eth_led_disconnected(void)
@@ -135,6 +145,10 @@ static void app_event_handler(void *handler_args, esp_event_base_t base, int32_t
 {
     switch (event_id)
     {
+    case APP_BOOT_FINISHED:
+        boot_finished = true;
+        led_update();
+        break;
     case APP_ETHERNET_MGMT_INTERFACE_CONNECTED:
         eth_link_state = true;
         eth_speed = ethernet_get_mgmt_if_link_speed();
@@ -201,11 +215,16 @@ static void mqtt_event_handler(void* arg, esp_event_base_t event_base,
     }
 }
 
+static void led_brightness_event_handler(void* arg, esp_event_base_t event_base,
+                                         int32_t event_id, void* event_data)
+{
+    led_update();
+}
+
 static void system_led_timer_cb(void *)
 {
-    set_led_with_brightness(led_handle, system_led_blink_state ?
-                              LED_IRGB(LED_SYSTEM, 0xFF, 0xFF, 0xFF) :
-                              LED_IRGB(LED_SYSTEM, 0, 0, 0));
+    system_led_state = system_led_blink_state ? LED_IRGB(LED_SYSTEM, 0xFF, 0xFF, 0xFF) : LED_IRGB(LED_SYSTEM, 0, 0, 0);
+    set_led_with_brightness(led_handle, system_led_state);
     system_led_blink_state = !system_led_blink_state;
 }
 
@@ -226,10 +245,11 @@ static void cits_led_timer_cb(void *)
 
 void led_update(void)
 {
-    uint8_t brightness;
     // brightness receives the default value of 255 in led.c, and thus cannot fail
-    ESP_ERROR_CHECK(config_get_u8(CONFIG_INDEX_LED_BRIGHTNESS, &brightness));
-    led_brightness = brightness;
+    ESP_ERROR_CHECK(config_get_u8(CONFIG_INDEX_LED_BRIGHTNESS, &led_brightness));
+
+    if (!boot_finished)
+        return;
 
     set_led_with_brightness(led_handle, system_led_state);
     set_led_with_brightness(led_handle, sniffer_led_state);
@@ -237,6 +257,7 @@ void led_update(void)
     set_led_with_brightness(led_handle, mqtt_led_state);
     set_led_with_brightness(led_handle, cits_led_state);
 
+    // this will fail if led_update is called when the timer is already running, but we don't care
     esp_timer_start_periodic(system_led_timer_handle, 1000000);
 }
 
@@ -276,15 +297,14 @@ void led_init(void)
     ESP_ERROR_CHECK(esp_event_handler_register(SNIFFER_EVENT_BASE, ESP_EVENT_ANY_ID, sniffer_event_handler, NULL));
     ESP_ERROR_CHECK(esp_event_handler_register(MQTT_EVENT_BASE, ESP_EVENT_ANY_ID, mqtt_event_handler, NULL));
     ESP_ERROR_CHECK(esp_event_handler_register(APP_EVENT_BASE, ESP_EVENT_ANY_ID, app_event_handler, NULL));
+    ESP_ERROR_CHECK(esp_event_handler_register(CONFIG_EVENT_BASE, CONFIG_INDEX_LED_BRIGHTNESS, led_brightness_event_handler, NULL));
 
-    uint8_t brightness;
     // brightness receives the default value of 255 in led.c, and thus cannot fail
-    ESP_ERROR_CHECK(config_get_u8(CONFIG_INDEX_LED_BRIGHTNESS, &brightness));
-    led_brightness = brightness;
+    ESP_ERROR_CHECK(config_get_u8(CONFIG_INDEX_LED_BRIGHTNESS, &led_brightness));
 
-    set_led_with_brightness(led_handle, LED_IRGB(0, 0xFF,    0,    0));
-    set_led_with_brightness(led_handle, LED_IRGB(1, 0xFF, 0xFF,    0));
-    set_led_with_brightness(led_handle, LED_IRGB(2,    0, 0xFF,    0));
-    set_led_with_brightness(led_handle, LED_IRGB(3,    0,    0, 0xFF));
-    set_led_with_brightness(led_handle, LED_IRGB(4, 0xFF,    0, 0xFF));
+    set_led_with_brightness_during_boot(led_handle, LED_IRGB(0, 0xFF,    0,    0));
+    set_led_with_brightness_during_boot(led_handle, LED_IRGB(1, 0xFF, 0xFF,    0));
+    set_led_with_brightness_during_boot(led_handle, LED_IRGB(2,    0, 0xFF,    0));
+    set_led_with_brightness_during_boot(led_handle, LED_IRGB(3,    0,    0, 0xFF));
+    set_led_with_brightness_during_boot(led_handle, LED_IRGB(4, 0xFF,    0, 0xFF));
 }

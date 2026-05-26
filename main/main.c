@@ -18,6 +18,7 @@
 #include "cmd_pcap.h"
 #include "config.h"
 #include "ethernet.h"
+#include "events.h"
 #include "led.h"
 #include "mqtt.h"
 #include "ota.h"
@@ -163,5 +164,5 @@ void app_main(void)
     // start console REPL
     ESP_ERROR_CHECK(esp_console_start_repl(repl));
 
-    led_update();
+    ESP_ERROR_CHECK(esp_event_post(APP_EVENT_BASE, APP_BOOT_FINISHED, NULL, 0, 0));
 }
