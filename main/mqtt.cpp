@@ -20,7 +20,7 @@
 
 #include "mqtt.h"
 
-static const char TAG[] = "MQTT";
+constexpr char TAG[] = "MQTT";
 
 static esp_mqtt_client_handle_t client;
 static bool connected;
@@ -128,16 +128,15 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
             break;
         case MQTT_EVENT_DATA:
             ESP_LOGI(TAG, "MQTT_EVENT_DATA");
-            printf("TOPIC=%.*s\r\n", event->topic_len, event->topic);
-            printf("DATA=%.*s\r\n", event->data_len, event->data);
+            ESP_LOGD(TAG, "TOPIC=%.*s\r\n", event->topic_len, event->topic);
+            ESP_LOGD(TAG, "DATA=%.*s\r\n", event->data_len, event->data);
             if (strlen(command_topic) == event->topic_len && !strncmp(event->topic, command_topic, event->topic_len))
             {
-                char *cmd = strndup(event->data, event->data_len);
-                ESP_LOGI(TAG, "Running command '%s'", event->data);
+                std::string cmd{event->data, static_cast<size_t>(event->data_len)};
+                ESP_LOGI(TAG, "Running command '%s'", cmd.c_str());
 
                 int ret;
-                int res = esp_console_run(cmd, &ret);
-                free(cmd);
+                int res = esp_console_run(cmd.c_str(), &ret);
                 char result_buf[128];
                 if (res != ESP_OK)
                 {
@@ -175,19 +174,17 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 
 static int make_topic_prefix()
 {
-    size_t size = sizeof(topic_prefix);
-    strcpy(topic_prefix, "its/");
-    size -= 4;
+    char nodeid[CONFIG_NODEID_BUFFER_SIZE];
+    size_t size = sizeof(nodeid);
 
-    esp_err_t res = config_get_str(CONFIG_INDEX_NODEID, topic_prefix + 4, &size);
+    esp_err_t res = config_get_str(CONFIG_INDEX_NODEID, nodeid, &size);
     if (res != ESP_OK)
     {
         ESP_LOGE(TAG, "Could not get node ID from config: %s", esp_err_to_name(res));
         return res;
     }
 
-    topic_prefix[4 + size - 1] = '/';
-    topic_prefix[4 + size] = '\0';
+    snprintf(topic_prefix, sizeof(topic_prefix), "its/%.*s/", size, nodeid);
 
     return ESP_OK;
 }
