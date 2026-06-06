@@ -1,4 +1,8 @@
-# ITS-G5 Receiver Firmware
+# ITS-G5 Receiver Firmware with TX Enabled
+
+## WARNING
+
+**The frequency band from 5,875 to 5,935 MHz is used for safety-related applications of Intelligent Transport Systems in the EU. Please make sure to obey all applicable laws and regulations when transmitting in this band.**
 
 ## Flashing a pre-compiled firmware
 
