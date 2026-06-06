@@ -4,6 +4,7 @@
 #include <string.h>
 #include <stdlib.h>
 
+#include "hal/modem_syscon_ll.h"
 #include "linenoise/linenoise.h"
 #include "esp_console.h"
 #include "esp_crt_bundle.h"
@@ -54,9 +55,11 @@ static void initialize_filesystem(void)
 static void initialize_wifi(void)
 {
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
+    modem_syscon_ll_enable_fe_40m_clock(&MODEM_SYSCON, 1);
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
     ESP_ERROR_CHECK(esp_wifi_set_storage(WIFI_STORAGE_RAM));
-    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_NULL));
+    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
+    ESP_ERROR_CHECK(esp_wifi_start());
 }
 
 static esp_console_repl_t *repl;

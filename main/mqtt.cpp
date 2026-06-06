@@ -18,6 +18,7 @@
 #include "ethernet.h"
 #include "events.h"
 #include "temperature.h"
+#include "tx_custom.h"
 
 #include "mqtt.h"
 
@@ -26,13 +27,14 @@ constexpr char TAG[] = "MQTT";
 static esp_mqtt_client_handle_t client;
 static bool connected;
 
-static char topic_prefix[96];
-static char command_topic[128];
-static char result_topic[128];
-static char packet_topic[128];
-static char status_topic[128];
-static char stats_topic[128];
-static char info_topic[128];
+static std::string topic_prefix;
+static std::string command_topic;
+static std::string result_topic;
+static std::string packet_topic;
+static std::string status_topic;
+static std::string stats_topic;
+static std::string info_topic;
+static std::string tx_topic;
 
 static esp_timer_handle_t stats_timer_handle;
 
@@ -67,7 +69,7 @@ static void publish_node_info(void)
     doc["hwv"] = CONFIG_HW_VARIANT;
 
     size_t written = serializeJson(doc, info);
-    esp_mqtt_client_publish(client, info_topic, info, written, 0, 0);
+    esp_mqtt_client_publish(client, info_topic.c_str(), info, written, 0, 0);
 }
 
 static void publish_stats_timer_cb(void *)
@@ -88,7 +90,7 @@ static void publish_stats_timer_cb(void *)
     doc["rbt"] = seconds_since_boot;
 
     size_t written = serializeJson(doc, stats);
-    esp_mqtt_client_publish(client, stats_topic, stats, written, 0, 0);
+    esp_mqtt_client_publish(client, stats_topic.c_str(), stats, written, 0, 0);
 }
 
 static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_t event_id, void *event_data) {
@@ -102,10 +104,12 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
         case MQTT_EVENT_CONNECTED:
             mqtt_set_connected(true);
             ESP_LOGI(TAG, "MQTT_EVENT_CONNECTED");
-            msg_id = esp_mqtt_client_subscribe(client, command_topic, 0);
-            ESP_LOGI(TAG, "sent subscribe to '%s', msg_id=%d", command_topic, msg_id);
+            msg_id = esp_mqtt_client_subscribe(client, command_topic.c_str(), 0);
+            ESP_LOGI(TAG, "sent subscribe to '%s', msg_id=%d", command_topic.c_str(), msg_id);
+            msg_id = esp_mqtt_client_subscribe(client, tx_topic.c_str(), 0);
+            ESP_LOGI(TAG, "sent subscribe to '%s', msg_id=%d", tx_topic.c_str(), msg_id);
 
-            esp_mqtt_client_publish(client, status_topic, "online", sizeof("online") - 1, 0, 1);
+            esp_mqtt_client_publish(client, status_topic.c_str(), "online", sizeof("online") - 1, 0, 1);
 
             publish_node_info();
             publish_stats_timer_cb(NULL);
@@ -127,29 +131,42 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
             ESP_LOGI(TAG, "MQTT_EVENT_PUBLISHED, msg_id=%d", event->msg_id);
             break;
         case MQTT_EVENT_DATA:
-            ESP_LOGI(TAG, "MQTT_EVENT_DATA");
-            ESP_LOGD(TAG, "TOPIC=%.*s\r\n", event->topic_len, event->topic);
-            ESP_LOGD(TAG, "DATA=%.*s\r\n", event->data_len, event->data);
-            if (strlen(command_topic) == event->topic_len && !strncmp(event->topic, command_topic, event->topic_len))
             {
-                std::string cmd{event->data, static_cast<size_t>(event->data_len)};
-                ESP_LOGI(TAG, "Running command '%s'", cmd.c_str());
-
-                int ret;
-                int res = esp_console_run(cmd.c_str(), &ret);
-                char result_buf[128];
-                if (res != ESP_OK)
+                ESP_LOGI(TAG, "MQTT_EVENT_DATA");
+                ESP_LOGD(TAG, "TOPIC=%.*s\r\n", event->topic_len, event->topic);
+                ESP_LOGD(TAG, "DATA=%.*s\r\n", event->data_len, event->data);
+                std::string_view topic{event->topic, static_cast<size_t>(event->topic_len)};
+                if (topic == command_topic)
                 {
-                    snprintf(result_buf, sizeof(result_buf), "esp_console_run failed: %s", esp_err_to_name(res));
-                    ESP_LOGE(TAG, "%s", result_buf);
-                    break;
-                }
-                else
-                {
-                    snprintf(result_buf, sizeof(result_buf), "%d", ret);
-                }
+                    std::string cmd{event->data, static_cast<size_t>(event->data_len)};
+                    ESP_LOGI(TAG, "Running command '%s'", cmd.c_str());
 
-                esp_mqtt_client_publish(client, result_topic, result_buf, strlen(result_buf), 0, 0);
+                    int ret;
+                    int res = esp_console_run(cmd.c_str(), &ret);
+                    char result_buf[128];
+                    if (res != ESP_OK)
+                    {
+                        snprintf(result_buf, sizeof(result_buf), "esp_console_run failed: %s", esp_err_to_name(res));
+                        ESP_LOGE(TAG, "%s", result_buf);
+                        break;
+                    }
+                    else
+                    {
+                        snprintf(result_buf, sizeof(result_buf), "%d", ret);
+                    }
+
+                    esp_mqtt_client_publish(client, result_topic.c_str(), result_buf, strlen(result_buf), 0, 0);
+                }
+                else if (topic == tx_topic)
+                {
+                    wifi_tx_rate_config_t config = {
+                        .phymode = WIFI_PHY_MODE_11A,
+                        .rate = WIFI_PHY_RATE_12M,
+                        .ersu = false,
+                        .dcm = false
+                    };
+                    esp_wifi_80211_tx_custom(WIFI_IF_STA, event->data, event->data_len, true, &config, WIFI_BAND_5G, WIFI_BW20);
+                }
             }
             break;
         case MQTT_EVENT_ERROR:
@@ -184,7 +201,12 @@ static int make_topic_prefix()
         return res;
     }
 
-    snprintf(topic_prefix, sizeof(topic_prefix), "its/%.*s/", size, nodeid);
+    std::string_view nodeid_view{nodeid, size - 1};
+
+    topic_prefix.reserve(size + 5);
+    topic_prefix = "its/";
+    topic_prefix += nodeid_view;
+    topic_prefix += "/";
 
     return ESP_OK;
 }
@@ -203,23 +225,13 @@ void mqtt_start(void)
         return;
     }
 
-    strcpy(command_topic, topic_prefix);
-    strcat(command_topic, "command");
-
-    strcpy(result_topic, topic_prefix);
-    strcat(result_topic, "command_result");
-
-    strcpy(packet_topic, topic_prefix);
-    strcat(packet_topic, "packet");
-
-    strcpy(status_topic, topic_prefix);
-    strcat(status_topic, "status");
-
-    strcpy(info_topic, topic_prefix);
-    strcat(info_topic, "info");
-
-    strcpy(stats_topic, topic_prefix);
-    strcat(stats_topic, "stats");
+    command_topic = topic_prefix + "command";
+    result_topic = topic_prefix + "command_result";
+    packet_topic = topic_prefix + "packet";
+    status_topic = topic_prefix + "status";
+    info_topic = topic_prefix + "info";
+    stats_topic = topic_prefix + "stats";
+    tx_topic = topic_prefix + "tx";
 
     esp_mqtt_client_config_t mqtt_cfg{};
 
@@ -235,7 +247,7 @@ void mqtt_start(void)
     mqtt_cfg.broker.address.uri = mqtt_uri;
     mqtt_cfg.broker.verification.crt_bundle_attach = esp_crt_bundle_attach;
     mqtt_cfg.session.last_will = {
-        .topic = status_topic,
+        .topic = status_topic.c_str(),
         .msg = "offline",
         .msg_len = sizeof("offline") - 1,
         .qos = 0,
@@ -288,7 +300,7 @@ extern "C" void mqtt_handle_packet(sniffer_packet_info_t *packet)
     if (!client || !connected)
         return;
 
-    esp_mqtt_client_publish(client, packet_topic, static_cast<const char *>(packet->payload), packet->length, 0, 0);
+    esp_mqtt_client_publish(client, packet_topic.c_str(), static_cast<const char *>(packet->payload), packet->length, 0, 0);
 }
 
 extern "C" void mqtt_init(void)

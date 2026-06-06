@@ -233,7 +233,7 @@ static esp_err_t sniffer_start()
         esp_wifi_set_promiscuous_rx_cb(wifi_sniffer_cb);
         ESP_GOTO_ON_ERROR(esp_wifi_set_promiscuous(true), err_start, TAG, "set promis failed");
         //ESP_GOTO_ON_ERROR(esp_wifi_set_channel(channel, WIFI_SECOND_CHAN_NONE), err_start, TAG, "set channel failed");
-        // enable 802.11p mode (enable, unknown (must be 0))
+        // enable 802.11p mode (enable, 5 MHz mode)
         phy_11p_set(1, 0);
         // set a channel with a frequency close to our desired frequency (not sure if strictly needed)
         ESP_GOTO_ON_ERROR(esp_wifi_set_channel(140, WIFI_SECOND_CHAN_NONE), err_start, TAG, "set channel failed");
